@@ -56,6 +56,16 @@ CSV Editor (validates outputs)
 User (reviews results)
 ```
 
+### Domain-Specific Knowledge
+
+These guides help agents understand extension-specific concepts:
+
+| Guide | Purpose | When to Use |
+|-------|---------|-------------|
+| [Vector Skill](./CLAUDE-vector-skill.md) | Understanding vector coverpoint goals | Working with Vx.csv, Vf.csv, Vls.csv |
+| [Vector Reference](./CLAUDE-vector-reference.md) | Technical lookup (encodings, formulas) | Need exact bit patterns, CSR fields |
+| [Coverpoint Reference](./CLAUDE-coverpoint-reference.md) | `ins` object API | Writing coverpoint templates |
+
 ## Common Development Tasks
 
 ### Building and Running Tests

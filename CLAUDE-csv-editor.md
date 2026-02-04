@@ -85,7 +85,9 @@ FEEDBACK: <if needed, what to fix>
 - Formatting rules: [TODO]
 - Before/after examples: [TODO]
 
-**Domain Knowledge** [TODO - fill before training]
+**Domain Knowledge**
+- **Vector Extension**: See [CLAUDE-vector-skill.md](./CLAUDE-vector-skill.md) for understanding vector coverpoint goals
+- **Vector Technical Reference**: See [CLAUDE-vector-reference.md](./CLAUDE-vector-reference.md) for exact encodings
 - User's test description examples: [TODO]
 - User's vocabulary/terminology: [TODO]
 - RISC-V testing patterns user cares about: [TODO]
@@ -108,3 +110,6 @@ FEEDBACK: <if needed, what to fix>
   - [Coverpoint Writer](./CLAUDE-coverpoint-writer.md)
   - [Test Writer](./CLAUDE-test-writer.md)
   - [Main Project](./CLAUDE.md)
+- **Domain Knowledge**:
+  - [Vector Skill](./CLAUDE-vector-skill.md) - Understanding vector coverpoint goals
+  - [Vector Reference](./CLAUDE-vector-reference.md) - Technical lookup tables
