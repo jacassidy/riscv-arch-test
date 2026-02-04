@@ -69,6 +69,51 @@ ins.current.insn[24:20]  // vs2 register number
 ins.current.insn[25]     // vm bit (0=masked)
 ```
 
+### Whole Register Move (vmv<nr>r.v) Encoding
+
+The `vmv<nr>r.v` instructions use simm[4:0] (bits [19:15]) to encode NREG-1:
+
+| Instruction | simm[4:0] | NREG | Alignment Requirement |
+|-------------|-----------|------|----------------------|
+| vmv1r.v | 00000 (0) | 1 | None |
+| vmv2r.v | 00001 (1) | 2 | vd, vs2 divisible by 2 |
+| vmv4r.v | 00011 (3) | 4 | vd, vs2 divisible by 4 |
+| vmv8r.v | 00111 (7) | 8 | vd, vs2 divisible by 8 |
+
+These instructions operate with implicit EMUL = NREG regardless of vtype LMUL setting.
+
+### Segment Load/Store Format
+
+```
+31  29 28 27 26 25  24   20 19   15 14  12 11    7 6     0
+[ nf ][mew][mop][vm][lumop][  rs1 ][width][ vd  ][opcode]
+```
+
+| Field | Bits | Description |
+|-------|------|-------------|
+| nf | 31:29 | NFIELDS-1 (0=1 segment, 7=8 segments) |
+| mew | 28 | Extended memory element width (reserved, must be 0) |
+| mop | 27:26 | Memory operation (00=unit, 01=indexed-unord, 10=strided, 11=indexed-ord) |
+| vm | 25 | Mask (0=masked, 1=unmasked) |
+| lumop | 24:20 | Load unit-stride memory op / rs2 for strided/indexed |
+| rs1 | 19:15 | Base address register |
+| width | 14:12 | Element width (EEW): 000=8, 101=16, 110=32, 111=64 |
+| vd | 11:7 | Destination vector register |
+
+```systemverilog
+ins.current.insn[31:29]  // nf field (NFIELDS = nf + 1)
+```
+
+### EMUL * NFIELDS Constraint
+
+For segment loads/stores: `EMUL * NFIELDS <= 8`
+
+| LMUL | nf (NFIELDS) | EMUL*NFIELDS | Status |
+|------|--------------|--------------|--------|
+| 8 | 1 (2) | 16 | Reserved |
+| 4 | 3 (4) | 16 | Reserved |
+| 2 | 7 (8) | 16 | Reserved |
+
 ---
 
 ## Register Alignment Patterns

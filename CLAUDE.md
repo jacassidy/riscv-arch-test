@@ -15,56 +15,48 @@ The framework generates tests based on:
 
 Repository: https://github.com/riscv-non-isa/riscv-arch-test (act4 branch)
 
-## Multi-Agent Workflow
+## Coverpoint Processing Workflow
 
-This project uses three specialized Claude agents working together:
+### Stateless Per-Line Processing
 
-### Hub Agent: CSV Editor
-**[Full Guide →](./CLAUDE-csv-editor.md)**
-- **Role**: Interpret user's natural language test requirements and coordinate specialists
-- **Model**: Opus
-- **Key Skill**: Understanding what the user wants to test
-- **Communication**: Back-and-forth dialogue with specialists
-- **Output**: Structured requirements for Coverpoint and Test Writers
+Each CSV line is processed by a **fresh Claude instance** with no conversation context.
 
-### Specialist Agent 1: Coverpoint Writer
-**[Full Guide →](./CLAUDE-coverpoint-writer.md)**
-- **Role**: Write `.txt` SystemVerilog coverpoint templates in professor's exact format
-- **Model**: Opus (training), Haiku (execution)
-- **Output**: `.txt` template files with keyword placeholders for Python assembly
-- **Constraint**: Very specific formatting requirements - deviations break assembly
+**Launcher script**: `working-testplans/process_csv.py`
 
-### Specialist Agent 2: Test Writer
-**[Full Guide →](./CLAUDE-test-writer.md)**
-- **Role**: Modify Python test generation code and assembly macros
-- **Model**: Opus (training), Haiku (execution)
-- **Output**: Modified Python code that generates assembly tests
-- **Focus**: Code patterns, assembly macros, test structure
+```bash
+# Process all lines in a CSV
+python3 working-testplans/process_csv.py Vls.csv
 
-### Workflow
+# Process specific line range
+python3 working-testplans/process_csv.py Vls.csv --start 5 --end 10
 
-```
-User (natural language)
-  ↓
-CSV Editor (interprets & coordinates)
-  ↓
-  ├→ Coverpoint Writer (writes .txt templates)
-  ├→ Test Writer (modifies Python code)
-  ↓
-CSV Editor (validates outputs)
-  ↓
-User (reviews results)
+# Process single line
+python3 working-testplans/process_csv.py Vls.csv --start 5
+
+# Preview without processing
+python3 working-testplans/process_csv.py Vls.csv --dry-run
 ```
 
-### Domain-Specific Knowledge
+### How Knowledge Persists
 
-These guides help agents understand extension-specific concepts:
+- **No conversation context** carries between lines
+- Claude reads `.md` files at start of each line
+- If Claude learns something new, it **must add it to the .md file** before finishing
+- Next line's Claude instance will read the updated .md
 
-| Guide | Purpose | When to Use |
-|-------|---------|-------------|
-| [Vector Skill](./CLAUDE-vector-skill.md) | Understanding vector coverpoint goals | Working with Vx.csv, Vf.csv, Vls.csv |
-| [Vector Reference](./CLAUDE-vector-reference.md) | Technical lookup (encodings, formulas) | Need exact bit patterns, CSR fields |
-| [Coverpoint Reference](./CLAUDE-coverpoint-reference.md) | `ins` object API | Writing coverpoint templates |
+### Guide Files
+
+| Guide | Purpose |
+|-------|---------|
+| [CSV Editor](./CLAUDE-csv-editor.md) | Main workflow, patterns, format rules |
+| [Coverpoint Writer](./CLAUDE-coverpoint-writer.md) | Additional patterns and syntax details |
+| [Vector Reference](./CLAUDE-vector-reference.md) | Bit encodings, CSR fields |
+| [Vector Skill](./CLAUDE-vector-skill.md) | Understanding test goals |
+
+### Output
+
+- Coverpoint templates: `generators/coverage/templates/*.txt`
+- CSV updates: `working-testplans/*.csv`
 
 ## Common Development Tasks
 

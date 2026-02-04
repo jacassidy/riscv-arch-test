@@ -1,31 +1,18 @@
 # CLAUDE-coverpoint-writer.md
 
-## Coverpoint Writer Agent - Specialist
+## Coverpoint Writer Reference
 
-**Role**: Write SystemVerilog coverpoint templates in exact required format
-**Model**: Haiku (Opus only for training/complex cases)
-**Output**: `.txt` template files with keyword placeholders for Python assembly
-**Key Constraint**: Use only proven syntax patterns - deviations break coverage generation
+**Purpose**: Detailed format rules and patterns for SystemVerilog coverpoint templates
+**Primary Guide**: See `CLAUDE-csv-editor.md` for the main workflow
+**When to Read**: Only if you need patterns not found in csv-editor.md
 
 ---
 
-## What You Do
+## Stateless Processing
 
-1. Receive structured requirements from CSV Editor (all info in prompt, no file reading needed)
-2. Write `.txt` template following exact format rules below
-3. Use only proven bin patterns (no experimental syntax)
-4. If stuck or unsure, ask the user directly - do not guess
-5. Write the file directly to `generators/coverage/templates/`
-
-### DO NOT Read Files
-
-When spawned by CSV Editor, your prompt contains everything you need:
-- Output file path
-- Requirements and conditions
-- Common patterns to use
-- Format rules
-
-**Never use Read, Glob, or Grep tools.** Just write the coverpoint file directly using the Write tool.
+Each CSV line is processed by a **fresh Claude instance**. No conversation context carries over.
+- Knowledge persists ONLY through .md file updates
+- If you learn something new, ADD IT to the appropriate .md file before finishing
 
 ---
 
