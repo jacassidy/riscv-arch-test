@@ -178,22 +178,59 @@ vtype_lmul_4: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype
     bins four = {2};
 }
 
-// Multiple LMUL values (LMUL >= 1)
+// Multiple LMUL values (LMUL >= 1, no guards needed)
 vtype_all_lmulge1: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vlmul") {
     bins one = {0}; bins two = {1}; bins four = {2}; bins eight = {3};
+}
+```
+
+**All LMUL values with ifdef guards** (REQUIRED when covering all LMUL values including fractional - fractional LMULs are optional per DUT, integer LMULs are always present):
+```systemverilog
+vtype_all_lmul: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vlmul") {
+    `ifdef LMULf8_SUPPORTED
+        bins eighth  = {5};
+    `endif
+    `ifdef LMULf4_SUPPORTED
+        bins fourth = {6};
+    `endif
+    `ifdef LMULf2_SUPPORTED
+        bins half   = {7};
+    `endif
+    bins one    = {0};
+    bins two    = {1};
+    bins four   = {2};
+    bins eight  = {3};
 }
 ```
 
 ### SEW Coverpoints
 
 ```systemverilog
-// vsew encoding: e8=0, e16=1, e32=2, e64=3
+// Single SEW value (vsew encoding: e8=0, e16=1, e32=2, e64=3)
 vtype_sew_8: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vsew") {
     bins e8 = {0};
 }
 
 vtype_sew_16: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vsew") {
     bins e16 = {1};
+}
+```
+
+**All SEW values with ifdef guards** (REQUIRED when covering all SEW values - not all SEW widths are supported by every DUT):
+```systemverilog
+vtype_all_sew: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vsew") {
+    `ifdef SEW8_SUPPORTED
+        bins e8  = {0};
+    `endif
+    `ifdef SEW16_SUPPORTED
+        bins e16 = {1};
+    `endif
+    `ifdef SEW32_SUPPORTED
+        bins e32 = {2};
+    `endif
+    `ifdef SEW64_SUPPORTED
+        bins e64 = {3};
+    `endif
 }
 ```
 

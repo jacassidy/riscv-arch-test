@@ -214,9 +214,32 @@ If you discover something new (pattern, encoding, technique), ADD IT to the appr
 
 ---
 
+## CSV Entry Writing Rules
+
+### Feature Description Must Be Procedural
+
+The Feature Description field describes **what the test does**, not what the spec says. Write it as a test procedure: what values to set up and what instruction to run.
+
+**Good** (procedural - says what to set up and execute):
+- "Set SEW=8, LMUL=1 and execute an indexed vector load/store with 64-bit index EEW (index EMUL=8), with vstart=0 and vl != 0"
+- "Set vtype.vill = 1 and run a whole register load/store instruction with vstart = 0 and vl != 0"
+
+**Bad** (restates the spec rule):
+- "For indexed vector load/store instructions, the data vector register group has EEW=SEW and EMUL=LMUL, while the index vector register group has EEW encoded in the instruction"
+
+**Note on standard conditions**: Normally all tests are non-trivial (vill=0, vstart=0, vl!=0). Only explicitly mention vstart=0 and vl!=0 in the feature description when the test *changes* one of the other standard conditions (e.g., vill=1). If the test uses the normal std_vec conditions, you don't need to spell them all out.
+
 ## Important Notes
 
 - **Instruction names not needed**: Coverpoints use bit fields, not instruction names
 - **Create what the user specified**: Don't add extra features or "improvements"
 - **One comment max**: Readers have the CSV - don't over-document
 - **Test the cross**: Every helper coverpoint must appear in at least one cross
+
+## File Modification Rules
+
+- **ONLY write coverpoint template files** (`generators/coverage/templates/*.txt` or `generators/coverage/templates/priv/*.txt`)
+- **NEVER modify CSV files, testplan files, or any other files** unless the user explicitly tells you to modify a specific file
+- CSV files, testplans, and other framework files are managed externally and copied in for testing - they are NOT their final versions
+- If you have a suggestion about CSV columns, testplan entries, or other file changes, **tell the user** instead of making the edit
+- When in doubt, describe what you think should change and let the user decide

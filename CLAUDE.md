@@ -15,6 +15,15 @@ The framework generates tests based on:
 
 Repository: https://github.com/riscv-non-isa/riscv-arch-test (act4 branch)
 
+## IMPORTANT: Coverpoint & CSV Tasks - Read Guide Files FIRST
+
+When asked to create, edit, or reason about **coverpoints or CSV entries**, your FIRST action must be to read these guide files (they contain all the patterns, formats, conventions, and examples you need):
+
+1. `CLAUDE-csv-editor.md` — Main workflow, CSV format, template structure, common patterns
+2. `CLAUDE-coverpoint-writer.md` — Template syntax details, allowed bin patterns, naming rules
+
+Do NOT explore the codebase, spawn search agents, or read template files before reading these guides. They are specifically written to give you everything you need. Only read additional files (e.g. specific existing templates) if the guides explicitly tell you to or if you need a very specific reference after reading them.
+
 ## Coverpoint Processing Workflow
 
 ### Stateless Per-Line Processing
