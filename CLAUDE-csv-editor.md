@@ -152,6 +152,65 @@
     }
 ```
 
+### FRM (Floating-Point Rounding Mode)
+```systemverilog
+    // Valid rounding modes (0-4)
+    frm_valid: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "frm", "frm") {
+        bins rne = {3'b000};
+        bins rtz = {3'b001};
+        bins rdn = {3'b010};
+        bins rup = {3'b011};
+        bins rmm = {3'b100};
+    }
+
+    // Invalid/reserved rounding modes (5-7)
+    frm_invalid: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "frm", "frm") {
+        bins reserved_5 = {3'b101};
+        bins reserved_6 = {3'b110};
+        bins reserved_7 = {3'b111};
+    }
+```
+
+### mstatus.vs Active (Vector Extension Accessible)
+```systemverilog
+    mstatus_vs_active: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "mstatus", "vs") {
+        bins active[] = {[1:3]};
+    }
+```
+
+### VL Zero
+```systemverilog
+    vl_zero: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vl", "vl") {
+        bins zero = {0};
+    }
+```
+
+### vstart >= vl
+```systemverilog
+    vstart_ge_vl: coverpoint (get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vstart", "vstart") >=
+                              get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vl", "vl")) {
+        bins true = {1'b1};
+    }
+```
+
+### XLEN Defines
+The framework uses `` `ifdef XLEN32 `` and `` `ifdef XLEN64 `` to guard XLEN-dependent coverpoints. Use these for bins that need different widths (e.g., 32-bit vs 64-bit literal values).
+
+### GPR Value Access (for vsetvl, etc.)
+```systemverilog
+ins.current.rs1_val  // Value of rs1 GPR
+ins.current.rs2_val  // Value of rs2 GPR (e.g., new vtype for vsetvl)
+```
+
+### FLEN / FP Extension Defines
+The framework defines FLEN and FP extension coverage macros in `RISCV_coverage_common.svh`:
+- `` `FLEN `` → 32 (default/F), 64 (`D_COVERAGE`), or 128 (`Q_COVERAGE`)
+- `D_COVERAGE` → D extension present (FLEN >= 64)
+- `Q_COVERAGE` → Q extension present (FLEN = 128)
+- No `ZVFH_COVERAGE` define exists yet — cannot ifdef-guard SEW=16 FP support
+
+Use `ifndef D_COVERAGE` to conditionally include bins for SEW=64 being unsupported for FP.
+
 ---
 
 ## Allowed Bin Patterns
