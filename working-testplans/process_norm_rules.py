@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 
 # ===== USER CONFIGURATION =====
-NORM_CSV = ""  # e.g. "norm_rules.csv" - normative rule CSV in working-testplans/
+NORM_CSV = "v-st-ext-normative-rules.csv"  # e.g. "norm_rules.csv" - normative rule CSV in working-testplans/
 COVERPOINT_CSVS = []  # e.g. ["Vector - SsstrictV.csv", "Vx.csv"] - coverpoint CSVs
 # ===============================
 
