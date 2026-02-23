@@ -9,12 +9,16 @@ Each row is processed by a completely independent Claude session.
 
 Usage:
     python process_norm_rules.py --phase 1 [options]
+    python process_norm_rules.py --phase 1s [options]
     python process_norm_rules.py --phase 2 [options]
 
 Examples:
-    python process_norm_rules.py --phase 1                    # Phase 1: all rows in all coverpoint CSVs
+    python process_norm_rules.py --phase 1                    # Phase 1: all rows in all custom coverpoint CSVs
     python process_norm_rules.py --phase 1 --line 5           # Phase 1: only line 5
     python process_norm_rules.py --phase 1 --start 5 --end 10 # Phase 1: lines 5-10
+    python process_norm_rules.py --phase 1s                   # Phase 1s: all columns in all standard CSVs (Vx, Vls, Vf)
+    python process_norm_rules.py --phase 1s --csv Vx          # Phase 1s: only Vx CSV
+    python process_norm_rules.py --phase 1s --csv Vx --line 3 # Phase 1s: only column 3 in Vx
     python process_norm_rules.py --phase 2                    # Phase 2: all normative rules
     python process_norm_rules.py --phase 2 --line 3           # Phase 2: only norm rule on line 3
     python process_norm_rules.py --dry-run --phase 1          # Show what would be processed
@@ -35,6 +39,24 @@ from pathlib import Path
 NORM_CSV = "v-st-ext-normative-rules.csv"  # e.g. "norm_rules.csv" - normative rule CSV in working-testplans/
 COVERPOINT_CSVS = ["SsstrictV.csv"]  # e.g. ["Vector - SsstrictV.csv", "Vx.csv"] - coverpoint CSVs
 #completed: "ExceptionsVf.csv", "ExceptionsVls.csv", "Vf_custom_definitions.csv", "Vls_custom_definitions.csv", "Vx_custom_definitions.csv"
+
+# Standard vector testplan CSVs (column-oriented, read-only sources)
+STANDARD_CSVS = {
+    "Vx": "duplicates/Vx-save.csv",
+    "Vls": "duplicates/Vls-save.csv",
+    "Vf": "duplicates/Vf-save.csv",
+}
+COVERPOINT_DEFS_FILE = "v-coverpoints.adoc"
+
+# Columns that are metadata, not coverpoints (skip when iterating columns)
+SKIP_COLUMNS = {
+    "Instruction", "Type", "RV32", "RV64",
+    "EFFEW8", "EFFEW16", "EFFEW32", "EFFEW64",
+    "cp_asm_count",
+    "cp_custom",
+}
+# Context columns included with every instruction for Claude
+CONTEXT_COLUMNS = ["Instruction", "EFFEW8", "EFFEW16", "EFFEW32", "EFFEW64"]
 # ===============================
 
 WORKING_TESTPLANS = Path(__file__).parent
@@ -503,6 +525,427 @@ def run_phase1(args):
 
 
 # ---------------------------------------------------------------------------
+# Phase 1s: Standard vector CSV → Normative Rule matching (column-oriented)
+# ---------------------------------------------------------------------------
+
+
+def load_coverpoint_defs() -> str:
+    """Load the v-coverpoints.adoc file for coverpoint definitions."""
+    path = WORKING_TESTPLANS / COVERPOINT_DEFS_FILE
+    if not path.exists():
+        print(f"ERROR: Coverpoint definitions file not found: {path}")
+        sys.exit(1)
+    return path.read_text(encoding="utf-8")
+
+
+def get_coverpoint_columns(fieldnames: list[str]) -> list[str]:
+    """Return column names that are actual coverpoints (not metadata/skip columns)."""
+    return [f for f in fieldnames if f not in SKIP_COLUMNS and not f.startswith("_")]
+
+
+def collect_column_instructions(
+    rows: list[dict], col_name: str
+) -> list[dict]:
+    """Collect all instructions that use a coverpoint column (non-empty cell).
+
+    Returns list of dicts with instruction context + cell_value.
+    """
+    instructions = []
+    for row in rows:
+        cell = (row.get(col_name) or "").strip()
+        if not cell:
+            continue
+        ctx = {"cell_value": cell}
+        for cc in CONTEXT_COLUMNS:
+            ctx[cc] = (row.get(cc) or "").strip()
+        instructions.append(ctx)
+    return instructions
+
+
+def format_instruction_list(instructions: list[dict]) -> str:
+    """Format instruction list as a compact summary grouped by variant value.
+
+    Instead of listing every instruction individually (which can be 200+ lines),
+    groups them by cell_value (variant) and shows count + representative examples.
+    """
+    from collections import defaultdict
+
+    # Group by variant value
+    groups: dict[str, list[str]] = defaultdict(list)
+    for inst in instructions:
+        val = inst.get("cell_value", "x")
+        name = inst.get("Instruction", "?")
+        groups[val].append(name)
+
+    lines = []
+    for variant, names in groups.items():
+        if len(names) <= 5:
+            names_str = ", ".join(names)
+        else:
+            names_str = f"{', '.join(names[:3])}, ... ({len(names)} total)"
+        lines.append(f"  - variant={variant}: {names_str}")
+
+    return "\n".join(lines)
+
+
+def format_instruction_list_csv(instructions: list[dict]) -> str:
+    """Format instruction list for the mapping CSV (compact summary by variant)."""
+    from collections import defaultdict
+
+    groups: dict[str, list[str]] = defaultdict(list)
+    for inst in instructions:
+        val = inst.get("cell_value", "x")
+        name = inst.get("Instruction", "?")
+        groups[val].append(name)
+
+    parts = []
+    for variant, names in groups.items():
+        if len(names) <= 3:
+            parts.append(f"{', '.join(names)} ({variant})")
+        else:
+            parts.append(f"{names[0]}, {names[1]}, ... +{len(names)-2} more ({variant})")
+    return "; ".join(parts)
+
+
+def read_mapping_csv(path: Path) -> tuple[list[str], list[dict]]:
+    """Read an existing mapping CSV, or return empty structure if it doesn't exist."""
+    if not path.exists():
+        return ["coverpoint_name", "instructions"], []
+    return read_csv(path)
+
+
+def write_mapping_csv(path: Path, fieldnames: list[str], rows: list[dict]):
+    """Write the mapping CSV."""
+    write_csv(path, fieldnames, rows)
+
+
+def get_mapping_row(
+    mapping_fields: list[str], mapping_rows: list[dict], cp_name: str
+) -> dict | None:
+    """Find existing row for a coverpoint in the mapping CSV."""
+    for row in mapping_rows:
+        if row.get("coverpoint_name", "").strip() == cp_name:
+            return row
+    return None
+
+
+def add_norm_to_mapping_row(
+    mapping_fields: list[str],
+    mapping_rows: list[dict],
+    cp_name: str,
+    instructions_str: str,
+    norm_rule_names: list[str],
+):
+    """Add or update a row in the mapping CSV for a coverpoint column."""
+    existing = get_mapping_row(mapping_fields, mapping_rows, cp_name)
+    if existing is None:
+        existing = {"coverpoint_name": cp_name, "instructions": instructions_str}
+        mapping_rows.append(existing)
+
+    # Collect already-assigned norm rules
+    assigned = set()
+    for key in existing:
+        if key.startswith("norm_rule_") and existing[key].strip():
+            assigned.add(existing[key].strip())
+
+    # Add new ones
+    idx = 1
+    while f"norm_rule_{idx}" in existing and existing[f"norm_rule_{idx}"].strip():
+        idx += 1
+    for name in norm_rule_names:
+        if name in assigned:
+            continue
+        col = f"norm_rule_{idx}"
+        if col not in mapping_fields:
+            mapping_fields.append(col)
+        existing[col] = name
+        assigned.add(name)
+        idx += 1
+
+
+def build_phase1s_a_prompt(
+    cp_col_name: str,
+    cp_definition: str,
+    variant_reference: str,
+    instructions: list[dict],
+    norm_rule_names: list[str],
+) -> str:
+    """Build Pass A prompt for standard coverpoint column → rule names selection."""
+    inst_block = format_instruction_list(instructions)
+    names_block = "\n".join(f"- {n}" for n in norm_rule_names)
+
+    return f"""You are a normative rule matcher for RISC-V vector extensions. Given a coverpoint column definition and the instructions that use it, select which normative rules are relevant.
+
+COVERPOINT COLUMN: {cp_col_name}
+
+COVERPOINT DEFINITION (from v-coverpoints.adoc):
+{cp_definition}
+
+VARIANT REFERENCE (cell values other than 'x' modify the coverpoint behavior):
+{variant_reference}
+
+INSTRUCTIONS USING THIS COVERPOINT (format: instruction(cell_value) [EEW widths]):
+{inst_block}
+
+NORMATIVE RULE NAMES:
+{names_block}
+
+Select ALL normative rules whose name suggests they are AT LEAST PARTIALLY related to what this coverpoint tests. Consider:
+- The coverpoint definition describes what hardware behavior is being verified
+- The variant values (emul2, nv0, f, wv, etc.) modify register numbering, edge values, or widths
+- The EEW columns show which element widths each instruction operates on
+- Rules about register encoding, element widths, masking, LMUL, VL, vtype, etc. may be relevant
+
+Be inclusive - if a rule name sounds even slightly relevant, include it.
+
+Output ONLY valid JSON (no markdown, no extra text):
+{{"selected_rules": ["rule_name_1", "rule_name_2", ...]}}
+
+If none are relevant: {{"selected_rules": []}}
+"""
+
+
+def build_phase1s_b_prompt(
+    cp_col_name: str,
+    cp_definition: str,
+    variant_reference: str,
+    instructions: list[dict],
+    selected_rules: list[tuple[str, str]],
+) -> str:
+    """Build Pass B prompt for standard coverpoint column → confirmed pairings."""
+    inst_block = format_instruction_list(instructions)
+    rules_block = "\n".join(f"- {name}: {desc}" for name, desc in selected_rules)
+
+    return f"""You are a normative rule matcher for RISC-V vector extensions. Given a coverpoint column and normative rules with their full spec text, determine which rules this coverpoint at least partially covers.
+
+COVERPOINT COLUMN: {cp_col_name}
+
+COVERPOINT DEFINITION (from v-coverpoints.adoc):
+{cp_definition}
+
+VARIANT REFERENCE (cell values other than 'x' modify the coverpoint behavior):
+{variant_reference}
+
+INSTRUCTIONS USING THIS COVERPOINT (format: instruction(cell_value) [EEW widths]):
+{inst_block}
+
+NORMATIVE RULES (name: spec text):
+{rules_block}
+
+For each rule that this coverpoint AT LEAST PARTIALLY covers, provide:
+- norm_rule_name: exact rule name from the list above
+- coverage_description: brief explanation of HOW this coverpoint column covers that rule (reference the coverpoint definition and relevant variants/instructions)
+
+The cp_name for all matches should be "{cp_col_name}" (the coverpoint column, not individual instructions).
+
+Output ONLY valid JSON (no markdown, no extra text):
+{{"matches": [{{"norm_rule_name": "...", "coverage_description": "..."}}]}}
+
+If none match: {{"matches": []}}
+"""
+
+
+def extract_cp_definition(adoc_text: str, cp_name: str) -> str:
+    """Extract a coverpoint's definition line from the adoc table."""
+    # Look for |cp_name| or |cmp_name| or |cr_name| pattern in the table
+    for line in adoc_text.split("\n"):
+        if f"|{cp_name}|" in line:
+            return line.strip().strip("|").strip()
+    # Try partial match (the column name may have variant suffix stripped)
+    base_name = cp_name.split("_")[0] + "_" + "_".join(cp_name.split("_")[1:])
+    for line in adoc_text.split("\n"):
+        if f"|{base_name}|" in line:
+            return line.strip().strip("|").strip()
+    return f"(No definition found for {cp_name} in v-coverpoints.adoc)"
+
+
+def extract_variant_reference(adoc_text: str) -> str:
+    """Extract the variant reference section (lines about nv0, emul2, etc.)."""
+    lines = adoc_text.split("\n")
+    variant_lines = []
+    capture = False
+    for line in lines:
+        if "an x in the spreadsheet" in line:
+            capture = True
+        if capture:
+            variant_lines.append(line)
+    return "\n".join(variant_lines) if variant_lines else "(No variant reference found)"
+
+
+def run_phase1s(args):
+    """Run Phase 1s: match standard vector coverpoint columns to normative rules."""
+    norm_path, norm_fields, norm_rows = read_norm_csv()
+    print(f"Loaded {len(norm_rows)} normative rules from {NORM_CSV}")
+
+    # Pre-compute rule names and descriptions
+    all_rule_names = [get_norm_name(r) for r in norm_rows if get_norm_name(r)]
+    rule_desc_map = {get_norm_name(r): get_norm_description(r) for r in norm_rows if get_norm_name(r)}
+
+    # Load coverpoint definitions
+    adoc_text = load_coverpoint_defs()
+    variant_ref = extract_variant_reference(adoc_text)
+
+    # Determine which CSVs to process
+    csv_filter = args.csv if hasattr(args, "csv") and args.csv else None
+    csvs_to_process = {}
+    for name, rel_path in STANDARD_CSVS.items():
+        if csv_filter and name != csv_filter:
+            continue
+        csvs_to_process[name] = rel_path
+
+    if not csvs_to_process:
+        print(f"ERROR: No matching CSVs found. Available: {list(STANDARD_CSVS.keys())}")
+        sys.exit(1)
+
+    for csv_name, csv_rel_path in csvs_to_process.items():
+        csv_path = WORKING_TESTPLANS / csv_rel_path
+        if not csv_path.exists():
+            print(f"WARNING: CSV not found: {csv_path}, skipping")
+            continue
+
+        cp_fields, cp_rows = read_csv(csv_path)
+        print(f"\nProcessing standard CSV: {csv_name} ({len(cp_rows)} instructions)")
+
+        # Set up output mapping CSV
+        mapping_path = WORKING_TESTPLANS / f"{csv_name}_norm_mapping.csv"
+        mapping_fields, mapping_rows = read_mapping_csv(mapping_path)
+
+        # Get coverpoint columns
+        cp_columns = get_coverpoint_columns(cp_fields)
+        print(f"Coverpoint columns: {len(cp_columns)}")
+
+        # Filter columns by --start/--end/--line (treating column index as "line")
+        col_indices = list(range(len(cp_columns)))
+        if args.line is not None:
+            col_indices = [i for i in col_indices if i + 1 == args.line]
+        elif args.start is not None:
+            if args.end is not None:
+                col_indices = [i for i in col_indices if args.start <= i + 1 <= args.end]
+            else:
+                col_indices = [i for i in col_indices if i + 1 >= args.start]
+
+        print(f"Columns to process: {len(col_indices)}")
+
+        success = 0
+        fail = 0
+
+        for col_idx in col_indices:
+            col_name = cp_columns[col_idx]
+
+            # Resume support: skip if already in mapping CSV (unless --force)
+            force = getattr(args, "force", False)
+            existing_row = get_mapping_row(mapping_fields, mapping_rows, col_name)
+            if existing_row is not None and not force:
+                has_rules = any(
+                    k.startswith("norm_rule_") and v.strip()
+                    for k, v in existing_row.items()
+                    if isinstance(v, str)
+                )
+                if has_rules or existing_row.get("instructions", "").strip():
+                    print(f"\n  [SKIP] {col_name} - already in mapping CSV")
+                    success += 1
+                    continue
+            elif existing_row is not None and force:
+                # Remove old row so it gets re-processed
+                mapping_rows.remove(existing_row)
+
+            # Collect instructions using this column
+            instructions = collect_column_instructions(cp_rows, col_name)
+            if not instructions:
+                print(f"\n  [SKIP] {col_name} - no instructions use it")
+                continue
+
+            # Get coverpoint definition from adoc
+            cp_def = extract_cp_definition(adoc_text, col_name)
+
+            print(f"\n{'=' * 60}")
+            print(f"Phase 1s - {csv_name} column {col_idx + 1}/{len(cp_columns)}: {col_name}")
+            print(f"  {len(instructions)} instructions, definition: {cp_def[:80]}...")
+            print(f"{'=' * 60}")
+
+            # --- Pass A: names-only selection ---
+            prompt_a = build_phase1s_a_prompt(
+                col_name, cp_def, variant_ref, instructions, all_rule_names
+            )
+            print(f"  Pass A: sending {len(all_rule_names)} rule names ({len(prompt_a)} chars)")
+            result_a = launch_claude(prompt_a, dry_run=args.dry_run)
+
+            if args.dry_run:
+                success += 1
+                continue
+
+            if result_a is None:
+                print("  Pass A failed, skipping column")
+                fail += 1
+                continue
+
+            selected = result_a.get("selected_rules", [])
+            selected = [n for n in selected if n in rule_desc_map]
+            print(f"  Pass A selected {len(selected)} rules")
+
+            if not selected:
+                print("  No rules selected, recording empty entry")
+                inst_str = format_instruction_list_csv(instructions)
+                add_norm_to_mapping_row(
+                    mapping_fields, mapping_rows, col_name, inst_str, []
+                )
+                write_mapping_csv(mapping_path, mapping_fields, mapping_rows)
+                success += 1
+                continue
+
+            # --- Pass B: full descriptions for selected rules ---
+            selected_with_desc = [(n, rule_desc_map[n]) for n in selected]
+            prompt_b = build_phase1s_b_prompt(
+                col_name, cp_def, variant_ref, instructions, selected_with_desc
+            )
+            print(f"  Pass B: sending {len(selected)} rules with descriptions ({len(prompt_b)} chars)")
+            result_b = launch_claude(prompt_b, dry_run=args.dry_run)
+
+            if result_b is None:
+                print("  Pass B failed, skipping column")
+                fail += 1
+                continue
+
+            matches = result_b.get("matches", [])
+            print(f"  Found {len(matches)} confirmed matches")
+
+            matched_norm_names = []
+            for match in matches:
+                norm_name = match.get("norm_rule_name", "")
+                cov_desc = match.get("coverage_description", "")
+                if not norm_name or norm_name not in rule_desc_map:
+                    continue
+                print(f"    -> {norm_name}: {cov_desc[:80]}")
+                # Add to norm CSV (cp_name = column name, not instruction)
+                add_coverpoint_to_norm_row(
+                    norm_path,
+                    norm_fields,
+                    norm_rows,
+                    norm_name,
+                    col_name,
+                    cov_desc,
+                )
+                matched_norm_names.append(norm_name)
+
+            # Add to mapping CSV
+            inst_str = format_instruction_list_csv(instructions)
+            add_norm_to_mapping_row(
+                mapping_fields, mapping_rows, col_name, inst_str, matched_norm_names
+            )
+
+            success += 1
+
+            # Write incrementally
+            write_mapping_csv(mapping_path, mapping_fields, mapping_rows)
+            write_csv(norm_path, norm_fields, norm_rows)
+
+        print(f"\nPhase 1s results for {csv_name}: {success} succeeded, {fail} failed")
+        print(f"  Mapping CSV: {mapping_path}")
+
+    print(f"\nUpdated {NORM_CSV}")
+
+
+# ---------------------------------------------------------------------------
 # Phase 2: Coverage completeness check
 # ---------------------------------------------------------------------------
 
@@ -674,15 +1117,17 @@ def main():
     )
     parser.add_argument(
         "--phase",
-        type=int,
+        type=str,
         required=True,
-        choices=[1, 2],
-        help="Phase 1: match coverpoints to norm rules. Phase 2: check completeness.",
+        choices=["1", "1s", "2"],
+        help="Phase 1: custom CSVs (row-oriented). Phase 1s: standard CSVs (column-oriented). Phase 2: check completeness.",
     )
-    parser.add_argument("--start", type=int, help="Start line number")
-    parser.add_argument("--end", type=int, help="End line number (inclusive, use with --start)")
-    parser.add_argument("--line", type=int, help="Process only this single line")
+    parser.add_argument("--start", type=int, help="Start line/column number")
+    parser.add_argument("--end", type=int, help="End line/column number (inclusive, use with --start)")
+    parser.add_argument("--line", type=int, help="Process only this single line/column")
+    parser.add_argument("--csv", type=str, help="For phase 1s: process only this CSV (e.g. Vx, Vls, Vf)")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be processed")
+    parser.add_argument("--force", action="store_true", help="Re-process even if already in mapping CSV")
 
     args = parser.parse_args()
 
@@ -690,14 +1135,16 @@ def main():
     if not NORM_CSV:
         print("ERROR: NORM_CSV is not configured. Edit the USER CONFIGURATION section at the top of this script.")
         sys.exit(1)
-    if not COVERPOINT_CSVS and args.phase == 1:
+    if not COVERPOINT_CSVS and args.phase == "1":
         print(
             "ERROR: COVERPOINT_CSVS is not configured. Edit the USER CONFIGURATION section at the top of this script."
         )
         sys.exit(1)
 
-    if args.phase == 1:
+    if args.phase == "1":
         run_phase1(args)
+    elif args.phase == "1s":
+        run_phase1s(args)
     else:
         run_phase2(args)
 
