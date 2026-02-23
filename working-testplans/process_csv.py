@@ -21,13 +21,14 @@ Examples:
 
 import argparse
 import csv
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
 WORKING_TESTPLANS = Path(__file__).parent
-TEMPLATES_DIR = REPO_ROOT / "generators" / "coverage" / "templates"
+TEMPLATES_DIR = REPO_ROOT / "generators" / "coverage" / "templates" / "vector"
 
 
 def get_coverpoint_name(row: dict) -> str:
@@ -71,8 +72,11 @@ def read_csv_lines(csv_path: Path) -> list[dict]:
 
 
 def template_exists(name: str) -> bool:
-    """Check if a template file exists in templates/ or templates/priv/."""
-    return (TEMPLATES_DIR / f"{name}.txt").exists() or (TEMPLATES_DIR / "priv" / f"{name}.txt").exists()
+    """Check if a template file exists in templates/ or templates/priv/ (.txt or .sv)."""
+    for ext in (".txt", ".sv"):
+        if (TEMPLATES_DIR / f"{name}{ext}").exists() or (TEMPLATES_DIR / "priv" / f"{name}{ext}").exists():
+            return True
+    return False
 
 
 def needs_processing(row: dict) -> bool:
@@ -116,13 +120,13 @@ def build_prompt(csv_file: str, line_number: int, row: dict) -> str:
     # Build task instructions based on whether name exists
     if name:
         name_instruction = f"""2. Create the coverpoint template file at:
-   generators/coverage/templates/{template_subdir}{name}.txt"""
+   generators/coverage/templates/vector/{template_subdir}{name}.txt"""
     else:
         name_instruction = f"""2. This row has no coverpoint name yet. You must:
    a. Create an appropriate name following the cp_<category>_<description> pattern
    b. Update the CSV file to add the name to the first column of this line
    c. Create the coverpoint template file at:
-      generators/coverage/templates/{template_subdir}<your_new_name>.txt"""
+      generators/coverage/templates/vector/{template_subdir}<your_new_name>.txt"""
 
     return f"""You are the CSV Editor agent. Process this single CSV line.
 
@@ -173,8 +177,13 @@ def process_line(csv_file: str, line_number: int, row: dict, dry_run: bool = Fal
 
     try:
         # Launch claude with plain text output
+        # Remove CLAUDECODE env vars to allow nested sessions
+        env = os.environ.copy()
+        for key in list(env.keys()):
+            if "CLAUDE" in key.upper():
+                del env[key]
         result = subprocess.run(
-            ["claude", "--dangerously-skip-permissions", prompt], cwd=REPO_ROOT, capture_output=True, text=True
+            ["claude", "--dangerously-skip-permissions", "-p", prompt], cwd=REPO_ROOT, capture_output=True, text=True, env=env
         )
 
         # Print the output

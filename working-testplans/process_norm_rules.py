@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import re
 import subprocess
 import sys
@@ -32,7 +33,8 @@ from pathlib import Path
 
 # ===== USER CONFIGURATION =====
 NORM_CSV = "v-st-ext-normative-rules.csv"  # e.g. "norm_rules.csv" - normative rule CSV in working-testplans/
-COVERPOINT_CSVS = []  # e.g. ["Vector - SsstrictV.csv", "Vx.csv"] - coverpoint CSVs
+COVERPOINT_CSVS = ["SsstrictV.csv"]  # e.g. ["Vector - SsstrictV.csv", "Vx.csv"] - coverpoint CSVs
+#completed: "ExceptionsVf.csv", "ExceptionsVls.csv", "Vf_custom_definitions.csv", "Vls_custom_definitions.csv", "Vx_custom_definitions.csv"
 # ===============================
 
 WORKING_TESTPLANS = Path(__file__).parent
@@ -204,7 +206,7 @@ def add_norm_rules_to_cp_row(
 
     Mutates fieldnames and the matching row in-place. Does NOT write to disk.
     """
-    col = "normative rules"
+    col = "Normative Rules"
     if col not in fieldnames:
         fieldnames.append(col)
     for row in rows:
@@ -294,11 +296,14 @@ def launch_claude(prompt: str, dry_run: bool = False) -> dict | None:
         return None
 
     try:
+        # Unset CLAUDECODE env var to allow nested launches
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
         result = subprocess.run(
-            ["claude", "--dangerously-skip-permissions", prompt],
+            ["claude", "--dangerously-skip-permissions", "-p", prompt],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
+            env=env,
         )
         output = result.stdout or ""
         if result.returncode != 0:
@@ -325,54 +330,78 @@ def launch_claude(prompt: str, dry_run: bool = False) -> dict | None:
 # ---------------------------------------------------------------------------
 
 
-def build_phase1_prompt(row: dict, norm_rules: list[dict]) -> str:
-    """Build the Phase 1 prompt for a single coverpoint row."""
-    instruction = get_field(row, "instruction", "sr no", "name")
+def build_phase1a_prompt(row: dict, norm_rule_names: list[str]) -> str:
+    """Build Pass A prompt: coverpoint row + rule NAMES only → select relevant rules."""
+    instruction = get_field(row, "instruction", "sr no", "name", "sr")
     goal = get_field(row, "goal")
     feature_desc = get_field(row, "feature description", "description")
     expectation = get_field(row, "expectation")
-    active_cps = format_active_coverpoints(row)
+    spec = get_field(row, "spec")
 
-    # Format all normative rules
-    rules_text = []
-    for nr in norm_rules:
-        name = get_norm_name(nr)
-        desc = get_norm_description(nr)
-        if name:
-            rules_text.append(f"- {name}: {desc}")
-    rules_block = "\n".join(rules_text)
+    names_block = "\n".join(f"- {n}" for n in norm_rule_names)
 
-    return f"""You are a normative rule matcher. Read the coverpoint information below and match it to normative rules.
+    return f"""You are a normative rule matcher. Given a coverpoint description and a list of normative rule NAMES, select which rules are relevant.
 
-COVERPOINT ROW:
-- Instruction: {instruction}
+COVERPOINT:
+- Name: {instruction}
 - Goal: {goal}
 - Feature Description: {feature_desc}
 - Expectation: {expectation}
-- Active coverpoints: {active_cps}
+- Spec: {spec}
 
-FULL ROW DATA:
-{format_coverpoint_row(row)}
+NORMATIVE RULE NAMES:
+{names_block}
 
-NORMATIVE RULES:
+Select ALL normative rules whose name suggests they are AT LEAST PARTIALLY related to this coverpoint. Be inclusive - if a rule name sounds even slightly relevant, include it. It's better to include too many than miss one.
+
+Output ONLY valid JSON (no markdown, no extra text):
+{{"selected_rules": ["rule_name_1", "rule_name_2", ...]}}
+
+If none are relevant: {{"selected_rules": []}}
+"""
+
+
+def build_phase1b_prompt(row: dict, selected_rules: list[tuple[str, str]]) -> str:
+    """Build Pass B prompt: coverpoint row + selected rules with full descriptions → pairings."""
+    instruction = get_field(row, "instruction", "sr no", "name", "sr")
+    goal = get_field(row, "goal")
+    feature_desc = get_field(row, "feature description", "description")
+    expectation = get_field(row, "expectation")
+    spec = get_field(row, "spec")
+
+    rules_block = "\n".join(f"- {name}: {desc}" for name, desc in selected_rules)
+
+    return f"""You are a normative rule matcher. Given a coverpoint and a set of normative rules with their full spec text, determine which rules this coverpoint at least partially covers.
+
+COVERPOINT:
+- Name: {instruction}
+- Goal: {goal}
+- Feature Description: {feature_desc}
+- Expectation: {expectation}
+- Spec: {spec}
+
+NORMATIVE RULES (name: spec text):
 {rules_block}
 
-For each normative rule that is AT LEAST PARTIALLY covered by any aspect of this
-coverpoint row, output a JSON match. Be inclusive - if any part of the coverpoint
-tests any part of the normative rule, include it.
+For each rule that this coverpoint AT LEAST PARTIALLY covers, provide:
+- norm_rule_name: exact rule name
+- coverage_description: brief explanation of HOW this coverpoint covers that rule
 
-The coverage_description should briefly explain HOW the coverpoint covers the rule.
-
-Output ONLY valid JSON (no markdown, no explanation outside the JSON):
+Output ONLY valid JSON (no markdown, no extra text):
 {{"matches": [{{"norm_rule_name": "...", "coverage_description": "..."}}]}}
 
-If no rules match, output: {{"matches": []}}"""
+If none match: {{"matches": []}}
+"""
 
 
 def run_phase1(args):
-    """Run Phase 1: match coverpoint rows to normative rules."""
+    """Run Phase 1: match coverpoint rows to normative rules (two-pass per row)."""
     norm_path, norm_fields, norm_rows = read_norm_csv()
     print(f"Loaded {len(norm_rows)} normative rules from {NORM_CSV}")
+
+    # Pre-compute rule names and name→description lookup
+    all_rule_names = [get_norm_name(r) for r in norm_rows if get_norm_name(r)]
+    rule_desc_map = {get_norm_name(r): get_norm_description(r) for r in norm_rows if get_norm_name(r)}
 
     # Process each coverpoint CSV
     for cp_csv_name in COVERPOINT_CSVS:
@@ -384,8 +413,8 @@ def run_phase1(args):
         cp_fields, cp_rows = read_csv(cp_path)
         print(f"\nProcessing coverpoint CSV: {cp_csv_name} ({len(cp_rows)} rows)")
 
-        # Filter rows by line range
-        rows_to_process = filter_rows(cp_rows, args)
+        # Filter rows by line range and validity
+        rows_to_process = filter_rows(cp_rows, args, phase=1)
         print(f"Rows to process: {len(rows_to_process)}")
 
         success = 0
@@ -393,33 +422,56 @@ def run_phase1(args):
 
         for row in rows_to_process:
             line_num = row["_line_number"]
-            row_name = get_field(row, "sr no", "instruction", "name") or f"line {line_num}"
+            row_name = get_field(row, "sr no", "instruction", "name", "sr") or f"line {line_num}"
             print(f"\n{'=' * 60}")
             print(f"Phase 1 - {cp_csv_name} line {line_num}: {row_name}")
             print(f"{'=' * 60}")
 
-            prompt = build_phase1_prompt(row, norm_rows)
-            result = launch_claude(prompt, dry_run=args.dry_run)
+            # --- Pass A: names-only selection ---
+            prompt_a = build_phase1a_prompt(row, all_rule_names)
+            print(f"  Pass A: sending {len(all_rule_names)} rule names ({len(prompt_a)} chars)")
+            result_a = launch_claude(prompt_a, dry_run=args.dry_run)
 
             if args.dry_run:
                 success += 1
                 continue
 
-            if result is None:
+            if result_a is None:
+                print("  Pass A failed, skipping row")
                 fail += 1
                 continue
 
-            matches = result.get("matches", [])
-            print(f"  Found {len(matches)} matches")
+            selected = result_a.get("selected_rules", [])
+            # Validate against known names
+            selected = [n for n in selected if n in rule_desc_map]
+            print(f"  Pass A selected {len(selected)} rules")
+
+            if not selected:
+                print("  No rules selected, skipping Pass B")
+                success += 1
+                continue
+
+            # --- Pass B: full descriptions for selected rules ---
+            selected_with_desc = [(n, rule_desc_map[n]) for n in selected]
+            prompt_b = build_phase1b_prompt(row, selected_with_desc)
+            print(f"  Pass B: sending {len(selected)} rules with descriptions ({len(prompt_b)} chars)")
+            result_b = launch_claude(prompt_b, dry_run=args.dry_run)
+
+            if result_b is None:
+                print("  Pass B failed, skipping row")
+                fail += 1
+                continue
+
+            matches = result_b.get("matches", [])
+            print(f"  Found {len(matches)} confirmed matches")
 
             matched_norm_names = []
             for match in matches:
                 norm_name = match.get("norm_rule_name", "")
                 cov_desc = match.get("coverage_description", "")
-                if not norm_name:
+                if not norm_name or norm_name not in rule_desc_map:
                     continue
                 print(f"    -> {norm_name}: {cov_desc[:80]}")
-                # Update norm CSV in memory
                 add_coverpoint_to_norm_row(
                     norm_path,
                     norm_fields,
@@ -430,7 +482,6 @@ def run_phase1(args):
                 )
                 matched_norm_names.append(norm_name)
 
-            # Update coverpoint CSV in memory
             if matched_norm_names:
                 add_norm_rules_to_cp_row(
                     cp_path,
@@ -442,16 +493,12 @@ def run_phase1(args):
 
             success += 1
 
-        if not args.dry_run:
-            # Write updated coverpoint CSV
-            write_csv(cp_path, cp_fields, cp_rows)
-            print(f"\nUpdated {cp_csv_name}")
+            # Write incrementally after each row
+            if not args.dry_run:
+                write_csv(cp_path, cp_fields, cp_rows)
+                write_csv(norm_path, norm_fields, norm_rows)
 
         print(f"Phase 1 results for {cp_csv_name}: {success} succeeded, {fail} failed")
-
-    if not args.dry_run:
-        # Write updated norm CSV
-        write_csv(norm_path, norm_fields, norm_rows)
         print(f"\nUpdated {NORM_CSV}")
 
 
@@ -496,24 +543,48 @@ def run_phase2(args):
     norm_path, norm_fields, norm_rows = read_norm_csv()
     print(f"Loaded {len(norm_rows)} normative rules from {NORM_CSV}")
 
-    rows_to_process = filter_rows(norm_rows, args)
+    rows_to_process = filter_rows(norm_rows, args, phase=2)
     print(f"Rules to process: {len(rows_to_process)}")
 
     success = 0
     fail = 0
 
+    # First pass: auto-mark rules with no coverpoints
+    auto_count = 0
+    for row in rows_to_process:
+        name = get_norm_name(row)
+        if not name:
+            continue
+        pairs = get_existing_coverpoint_pairs(row)
+        if not pairs and not args.dry_run:
+            set_coverage_status(norm_rows, norm_fields, name, "none", "No coverpoints paired to this rule", [])
+            auto_count += 1
+    if auto_count and not args.dry_run:
+        write_csv(norm_path, norm_fields, norm_rows)
+    print(f"Auto-marked {auto_count} rules with no coverpoints as 'none'")
+    success += auto_count
+
+    # Second pass: Claude assessment for rules with coverpoints
     for row in rows_to_process:
         line_num = row["_line_number"]
         name = get_norm_name(row)
         if not name:
             continue
 
-        print(f"\n{'=' * 60}")
-        print(f"Phase 2 - line {line_num}: {name}")
-        print(f"{'=' * 60}")
-
         pairs = get_existing_coverpoint_pairs(row)
-        print(f"  Has {len(pairs)} paired coverpoints")
+        if not pairs:
+            continue  # already handled above
+
+        # Skip if already assessed (resume support)
+        existing_status = (row.get("coverage_status") or "").strip()
+        if existing_status:
+            print(f"  [SKIP] {name} - already assessed as '{existing_status}'")
+            success += 1
+            continue
+
+        print(f"\n{'=' * 60}")
+        print(f"Phase 2 - line {line_num}: {name} ({len(pairs)} coverpoints)")
+        print(f"{'=' * 60}")
 
         prompt = build_phase2_prompt(row)
         result = launch_claude(prompt, dry_run=args.dry_run)
@@ -538,9 +609,9 @@ def run_phase2(args):
         set_coverage_status(norm_rows, norm_fields, name, status, explanation, gaps)
         success += 1
 
-    if not args.dry_run:
-        write_csv(norm_path, norm_fields, norm_rows)
-        print(f"\nUpdated {NORM_CSV}")
+        # Write after each row so progress is saved incrementally
+        if not args.dry_run:
+            write_csv(norm_path, norm_fields, norm_rows)
 
     print(f"\nPhase 2 results: {success} succeeded, {fail} failed")
 
@@ -550,15 +621,46 @@ def run_phase2(args):
 # ---------------------------------------------------------------------------
 
 
-def filter_rows(rows: list[dict], args) -> list[dict]:
-    """Filter rows by --line, --start, --end arguments."""
+def is_processable_cp_row(row: dict) -> bool:
+    """Determine if a coverpoint CSV row has meaningful data to process.
+
+    Skips blank rows, section headers, parameter notes, and 'Untestable' rows.
+    A row is processable if it has a cp_ name OR a non-trivial Goal.
+    """
+    sr_no = get_field(row, "sr no", "name")
+    goal = get_field(row, "goal")
+    coverpoint_written = get_field(row, "coverpoint written")
+
+    # Skip rows marked as untestable, parameter, or already covered
+    for marker in ("untestable", "parameter", "covered by"):
+        if coverpoint_written.lower().startswith(marker):
+            return False
+
+    # Must have a cp_ name or a meaningful goal
+    if sr_no.startswith("cp_"):
+        return True
+    if goal and len(goal) > 10:
+        return True
+
+    return False
+
+
+def filter_rows(rows: list[dict], args, phase: int = 1) -> list[dict]:
+    """Filter rows by --line, --start, --end arguments and row validity."""
+    filtered = rows
     if args.line is not None:
-        return [r for r in rows if r["_line_number"] == args.line]
-    if args.start is not None:
+        filtered = [r for r in filtered if r["_line_number"] == args.line]
+    elif args.start is not None:
         if args.end is not None:
-            return [r for r in rows if args.start <= r["_line_number"] <= args.end]
-        return [r for r in rows if r["_line_number"] >= args.start]
-    return rows
+            filtered = [r for r in filtered if args.start <= r["_line_number"] <= args.end]
+        else:
+            filtered = [r for r in filtered if r["_line_number"] >= args.start]
+
+    # For phase 1, skip non-processable rows
+    if phase == 1:
+        filtered = [r for r in filtered if is_processable_cp_row(r)]
+
+    return filtered
 
 
 # ---------------------------------------------------------------------------

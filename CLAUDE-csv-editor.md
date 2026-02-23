@@ -239,6 +239,29 @@ my_compound_cp : {coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "v
 
 Each bin matches a tuple of values in the order the coverpoints are declared.
 
+### EMUL Computation for Load/Store (3-field compound)
+
+For segment load/store coverpoints, EMUL = (EEW/SEW) * LMUL. Since these are encoded values,
+use a 3-field compound with (vlmul, vsew, width) and enumerate specific tuples:
+
+```systemverilog
+emul_8_ls : {coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vlmul")[2:0],
+             coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vsew")[1:0],
+             coverpoint ins.current.insn[14:12]} {
+    // EEW=SEW, LMUL=8
+    bins m8_sew8_eew8   = {3'b011, 2'b00, 3'b000};
+    // EEW=2*SEW, LMUL=4
+    bins m4_sew8_eew16  = {3'b010, 2'b00, 3'b101};
+    // etc.
+}
+```
+
+Width field (bits 14:12) encodes EEW: 000=8, 101=16, 110=32, 111=64.
+For EMUL*NFIELDS>8 violations, split by EMUL level with appropriate NF thresholds:
+- EMUL=8: cross with nf≥1 (NFIELDS≥2)
+- EMUL=4: cross with nf≥2 (NFIELDS≥3)
+- EMUL=2: cross with nf≥4 (NFIELDS≥5)
+
 ---
 
 ## File Locations
