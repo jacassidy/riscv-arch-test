@@ -104,6 +104,12 @@ If something looks wrong in a template or config (e.g. wrong register field, wro
 ### Don't confuse vs1 vs vs2 for unary ops
 VVM unary instructions (vfsqrt, vfrsqrt7, vfrec7, vfclass) use the **vs2** field for source data. Coverage templates may incorrectly reference `vs1` — this is a known bug pattern. Always verify the template samples the correct register field, and fix it if wrong.
 
+### Register name must match CSV column, not coverpoint definition name
+The `@register()` decorator tag must match the **CSV column name** in `testplans/VfCustom.csv` (or whichever CSV), NOT the name in `Vf_custom_definitions.csv`. The testplan_manager maps definition names → CSV column names, but the framework dispatches using the CSV column. E.g., if the CSV column is `cp_custom_vfp_state` but the definition is `cp_custom_f_freg_write_vl0`, register as `cp_custom_vfp_state`.
+
+### SEW > XLEN on RV32 causes compilation failures
+When SEW=64 on RV32, `writeTest` generates `sd`/`fld` instructions that need D/zilsd extension. Skip with: `if sew > common.xlen: return` (import `vector_testgen_common as common`).
+
 ### Stop spinning on coverage issues
 If you can't figure out a coverage issue after 2 attempts, stop. Write a concise note to `claude-scripts/coverage_issues/<coverpoint_name>.md` explaining what coverage is missing and your best guess why. A human will look at it later.
 
@@ -121,6 +127,32 @@ The `vs_corner_f_sNaN_payload1` data label generates specific values per SEW:
 
 Always verify bin values in `.sv` templates against actual data in generated `.S` files.
 
+### CSR field names in coverage templates: use "fcsr" not "frm"
+The `get_csr_val()` function for sampling `frm` must use `"fcsr"` as the CSR name, not `"frm"`:
+- **WRONG**: `get_csr_val(ins.hart, ins.issue, \`SAMPLE_BEFORE, "frm", "frm")`
+- **RIGHT**: `get_csr_val(ins.hart, ins.issue, \`SAMPLE_BEFORE, "fcsr", "frm")`
+The RVVI trace exposes `frm` as a field within `fcsr`, not as a standalone CSR. Using `"frm", "frm"` silently returns 0 and gives 0% coverage on the frm bin.
+
+### Overlap constraints fail for segmented instructions at high LMUL/NF
+`randomizeVectorInstructionData()` raises `ValueError` when register overlap constraints are unsolvable. This commonly happens with segmented load/store instructions (e.g., `vlseg6e16.v` has nf=6) at higher LMUL values, because vd occupies `nf*LMUL` consecutive registers, leaving too few registers for other operands. **Always wrap `randomizeVectorInstructionData()` calls in `try/except ValueError: pass`** for scripts applied to segmented or whole-register LS instructions.
+
+### NEVER use `vs2_val=integer` — always use `vs2_val_pointer`
+`vs2_val=integer` loads via `li` + `vmv.v.x` which sign-extends from XLEN. On RV32 this truncates 64-bit values, and it can also cause traps for certain values. **Always use `vs2_val_pointer=label`** instead, which loads from memory via `vle`.
+
+For custom values not in the existing edge data labels, use `registerCustomData()`:
+```python
+from vector_testgen_common import registerCustomData
+
+# Register a data label with 64-bit values (fills full VLEN register by repeating)
+registerCustomData("my_custom_label", [0x47F0000000000000], element_size=64)
+
+# Then use it
+data = randomizeVectorInstructionData(test, sew, count, lmul=1, vs2_val_pointer="my_custom_label")
+```
+`registerCustomData(label, values, element_size)` creates a data label in the `.data` section. The `values` list is replicated to fill maxVLEN bits. `element_size` is 8/16/32/64. Labels are cleared between test files automatically.
+
 ## Coverpoint-Specific Notes
 
 - **cp_custom_FpRecSqrtEst_flag_edges**: 90% coverage. Cross with `fp_flags_clear` at 50% — see `coverage_issues/cp_custom_FpRecSqrtEst_flag_edges.md` for details. Script and template are correct.
+- **cp_custom_vfncvt_rup_overflow**: 100% coverage on RV64 for `vfncvt.f.f.w` and `vfncvt.rod.f.f.w`. The other 6 instructions (int-to-float, float-to-int) can't set fflags.OF with SEW=32: int64 max < float32 max (no overflow possible), and float-to-int overflow sets NV not OF. All RV32 tests fail due to `vs2_val` XLEN truncation. Template had two bugs fixed: (1) wrong CSR name `"frm"` → `"fcsr"` for frm sampling, (2) misleading comment about SEW meaning (corrected to reflect 64→32 narrowing, not 32→16).
+- **cp_custom_vfp_state (cp_custom_f_freg_write_vl0)**: 4/8 bins covered = 50% (cp_asm_count, std_vec, fd_changed_value, fp_flags_clear all 100%). Both crosses at 0% due to template issues: (1) `mstatus_prev_clean` checks `mstatus.vs==0` (Off), which traps on all vector instructions, contradicting `std_vec` (requires no trap). Should probably check `vs==2` (Clean), but even then vector setup instructions (vsetvli, vle) dirty VS before the test instruction. (2) `vfp_state_vfsqrt_flag_set` hardcodes `insn=="vfrsqrt7.v"`, impossible for `vfmv.f.s`. The `cp_custom_f_freg_write_vl0` specific bin (fd_changed_value) IS 100% covered. RV32/SEW64 skipped due to sd/fld needing D extension. See `coverage_issues/cp_custom_vfp_state.md`.

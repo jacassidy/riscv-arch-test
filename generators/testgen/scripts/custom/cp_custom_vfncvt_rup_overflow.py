@@ -21,6 +21,7 @@ from vector_testgen_common import (
     incrementBasetestCount,
     getBaseSuiteTestCount,
     vsAddressCount,
+    registerCustomData,
 )
 
 # 64-bit double values that exceed float32 max range (~3.4028235e38)
@@ -40,32 +41,44 @@ FLOAT_TO_FLOAT = {"vfncvt.f.f.w", "vfncvt.rod.f.f.w"}
 INT_TO_FLOAT = {"vfncvt.f.x.w", "vfncvt.f.xu.w"}
 FLOAT_TO_INT = {"vfncvt.xu.f.w", "vfncvt.x.f.w", "vfncvt.rtz.xu.f.w", "vfncvt.rtz.x.f.w"}
 
+# Register custom data labels for 64-bit values that can't use vmv.v.x
+DATA_LABELS = {
+    "custom_pos_overflow_f64": POS_OVERFLOW_F64,
+    "custom_neg_overflow_f64": NEG_OVERFLOW_F64,
+    "custom_large_int64": LARGE_INT64,
+    "custom_large_float_for_int": LARGE_FLOAT_FOR_INT,
+}
+
 
 @register("cp_custom_vfncvt_rup_overflow")
 def make(test, sew):
     if sew != 32:
         return
 
+    # Register all custom data labels so they appear in .data section
+    for label, val in DATA_LABELS.items():
+        registerCustomData(label, [val], element_size=64)
+
     if test in FLOAT_TO_FLOAT:
         # Source is 64-bit double; use value exceeding float32 range
         values = [
-            (POS_OVERFLOW_F64, "positive overflow"),
-            (NEG_OVERFLOW_F64, "negative overflow"),
+            ("custom_pos_overflow_f64", "positive overflow"),
+            ("custom_neg_overflow_f64", "negative overflow"),
         ]
     elif test in INT_TO_FLOAT:
         # Source is 64-bit integer; can't truly overflow float32 but test anyway
-        values = [(LARGE_INT64, "large integer")]
+        values = [("custom_large_int64", "large integer")]
     elif test in FLOAT_TO_INT:
         # Source is 64-bit double, dest is 32-bit integer; overflow sets NV not OF
-        values = [(LARGE_FLOAT_FOR_INT, "large float for int overflow")]
+        values = [("custom_large_float_for_int", "large float for int overflow")]
     else:
         return
 
-    for val, desc in values:
+    for label, desc in values:
         description = f"cp_custom_vfncvt_rup_overflow ({test}, {desc}, frm=RUP)"
         instruction_data = randomizeVectorInstructionData(
             test, sew, getBaseSuiteTestCount(),
-            lmul=1, vs2_val=val,
+            lmul=1, vs2_val_pointer=label,
         )
         writeTest(
             description, test, instruction_data,

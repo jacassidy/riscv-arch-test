@@ -31,6 +31,7 @@ from vector_testgen_common import (
   flen,
   freg_count,
   frmList,
+  clearCustomData,
   genVtestdata,
   getBaseLmul,
   getBaseSuiteTestCount,
@@ -1240,6 +1241,7 @@ if __name__ == '__main__':
           elif (sew == 64):
             f.write("#if ELEN > 64\n")
 
+        clearCustomData()  # clear any custom data from previous test
         coverpoints = list(testplans[extension][test])
         applicable_coverpoints = coverpointInclusions(coverpoints)
         if test not in unsupported_tests:

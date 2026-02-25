@@ -1099,6 +1099,58 @@ def genVsedgesFP(test, sew, emul):
   return vectordata
 
 
+# Custom data labels registered by custom coverpoint scripts.
+# Key: label name (str), Value: list of (directive, value) tuples
+# e.g. {"my_label": [(".dword", "0x47F0000000000000"), (".dword", "0x47F0000000000000"), ...]}
+_custom_data_labels = {}
+
+def registerCustomData(label, values, element_size=64):
+    """Register a custom data label to be emitted in the .data section.
+
+    Args:
+        label: The label name (used with vs2_val_pointer=label)
+        values: A list of integer values, one per element of the vector register.
+                The list will be replicated to fill maxVLEN bits.
+        element_size: Bit width of each element (8, 16, 32, or 64). Default 64.
+    """
+    directive = ".dword" if element_size >= 64 else ".word"
+    total_bits = maxVLEN
+    bits_per_entry = 64 if element_size >= 64 else 32
+    num_entries = total_bits // bits_per_entry
+
+    entries = []
+    for i in range(num_entries):
+        # Cycle through provided values to fill the register
+        val = values[i % len(values)]
+        mask = (1 << bits_per_entry) - 1
+        val &= mask
+        if bits_per_entry == 64:
+            entries.append((directive, f"0x{val:016x}"))
+        else:
+            entries.append((directive, f"0x{val:08x}"))
+
+    _custom_data_labels[label] = entries
+
+def genCustomData():
+    """Generate data section entries for all registered custom data labels."""
+    if not _custom_data_labels:
+        return ""
+    data = ""
+    data += writeData("\n")
+    data += writeData("///////////////////////////////////////////")
+    data += writeData("// custom coverpoint data labels")
+    data += writeData("///////////////////////////////////////////\n")
+    data += writeData("    .align 3")
+    for label, entries in _custom_data_labels.items():
+        data += writeData(f"{label}:")
+        for directive, value in entries:
+            data += writeData(f"    {directive} {value}")
+    return data
+
+def clearCustomData():
+    """Clear all registered custom data labels (called between test files)."""
+    _custom_data_labels.clear()
+
 def genVtestdata(test, sew):
   test_data = ".align 4\n"
   test_data += "vector_data:\n"
@@ -1152,6 +1204,7 @@ def genVtestdata(test, sew):
         test_data += genVsedges(test, sew, "1")
 
   test_data += genVMaskedges()
+  test_data += genCustomData()
 
   return test_data
 

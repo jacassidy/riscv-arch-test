@@ -147,8 +147,17 @@ def restore_testplans() -> None:
             dest = TESTPLANS_DIR / original_name
             shutil.copy2(save_file, dest)
 
-    # Restore original EXTENSIONS line
-    _update_makefile_extensions("VfCustom16,VfCustom32,VfCustom64")
+    # Restore EXTENSIONS line to include all categories that have saved CSVs
+    all_extensions = []
+    for cat_config in CATEGORY_CONFIG.values():
+        save_path = DUPLICATES_DIR / cat_config["custom_save"]
+        if save_path.exists():
+            for e in cat_config["effews"]:
+                all_extensions.append(f"{cat_config['effew_prefix']}{e}")
+    if all_extensions:
+        _update_makefile_extensions(",".join(all_extensions))
+    else:
+        _update_makefile_extensions("VfCustom16,VfCustom32,VfCustom64")
 
 
 def get_instructions_for_coverpoint(coverpoint_name: str, category: str = "Vf") -> list[str]:

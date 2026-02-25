@@ -5,7 +5,7 @@
             bins clear = {0};
     }
 
-    vs1_0_recip7_edges : coverpoint get_vr_element_zero(ins.hart, ins.issue, ins.current.vs1) {
+    vs2_0_recip7_edges : coverpoint get_vr_element_zero(ins.hart, ins.issue, ins.current.vs2_val) {
         `ifdef COVER_VFCUSTOM16
             bins vs1_0_neg_inf        = {64'h0000_0000_0000_FC00}; // -∞
             bins vs1_0_neg_zero       = {64'h0000_0000_0000_8000}; // -0.0
@@ -78,6 +78,6 @@
     }
 
 
-    cp_custom_FpRecSqrtEst_flag_edges: cross std_vec, vs1_0_recip7_edges, fp_flags_clear;
+    cp_custom_FpRecipEst_flag_edges: cross std_vec, vs2_0_recip7_edges, fp_flags_clear;
 
     //// end cp_custom_FpRecipEst_flag_edges////////////////////////////////////////////////

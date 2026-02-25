@@ -1,5 +1,5 @@
 
-        vs1_0_qNAN : coverpoint get_vr_element_zero(ins.hart, ins.issue, ins.current.vs1) {
+        vs1_0_qNAN : coverpoint get_vr_element_zero(ins.hart, ins.issue, ins.current.vs1_val) {
                 `ifdef COVER_VFCUSTOM16
                 bins posQNaN          = {[64'h07E00:64'h07FFF]};
                 `endif
