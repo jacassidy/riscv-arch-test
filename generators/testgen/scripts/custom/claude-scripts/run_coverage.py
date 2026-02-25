@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
+"""Run coverage for a single coverpoint column in isolation.
+
+Usage:
+    python3 run_coverage.py <coverpoint_name> [category]
+
+Example:
+    python3 run_coverage.py cp_custom_vfp_flags Vf
+    python3 run_coverage.py cp_custom_masked_v0_operand Vls
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+# Setup paths
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO = SCRIPT_DIR.parents[4]  # riscv-arch-test-cvw root
+
+sys.path.insert(0, str(SCRIPT_DIR))
+from testplan_manager import isolate_column, restore_testplans
+from coverage_parser import summarize_coverage
+
+
+def run_coverage(coverpoint_name: str, category: str = "Vf", timeout_minutes: int = 30) -> dict:
+    """Isolate one column, build, run coverage, restore CSVs.
+
+    Returns dict with keys: status, coverage_summary, build_log, coverage_log, duration_s
+    """
+    start = time.time()
+    result = {
+        "coverpoint": coverpoint_name,
+        "category": category,
+        "status": "unknown",
+        "coverage_summary": {},
+        "build_log": "",
+        "coverage_log": "",
+        "duration_s": 0,
+    }
+
+    try:
+        # 1. Isolate column
+        print(f"[1/4] Isolating column '{coverpoint_name}' for category '{category}'...")
+        isolate_column(coverpoint_name, category)
+
+        # 2. Clean
+        print("[2/4] Cleaning...")
+        proc = subprocess.run(
+            ["make", "clean"],
+            cwd=str(REPO), capture_output=True, text=True, timeout=120
+        )
+        if proc.returncode != 0:
+            result["status"] = "clean_failed"
+            result["build_log"] = proc.stderr[-2000:]
+            return result
+
+        # 3. Generate tests
+        print("[3/4] Generating tests (make vector-tests)...")
+        proc = subprocess.run(
+            ["make", "vector-tests"],
+            cwd=str(REPO), capture_output=True, text=True, timeout=600
+        )
+        if proc.returncode != 0:
+            result["status"] = "testgen_failed"
+            result["build_log"] = proc.stderr[-3000:]
+            return result
+        result["build_log"] = proc.stdout[-2000:]
+
+        # 4. Run coverage
+        print("[4/4] Running coverage (make coverage)...")
+        proc = subprocess.run(
+            ["make", "coverage"],
+            cwd=str(REPO), capture_output=True, text=True,
+            timeout=timeout_minutes * 60
+        )
+        # Coverage uses -k flag so partial failures are OK
+        result["coverage_log"] = proc.stdout[-5000:] + "\n---STDERR---\n" + proc.stderr[-3000:]
+        if proc.returncode != 0:
+            result["status"] = "coverage_partial"
+        else:
+            result["status"] = "ok"
+
+        # 5. Parse reports
+        config = {"Vf": {"effews": ["16", "32", "64"], "prefix": "VfCustom"},
+                  "Vls": {"effews": ["8", "16", "32", "64"], "prefix": "VlsCustom"}}
+        cat_config = config[category]
+
+        summaries = {}
+        for xlen in ["rv32", "rv64"]:
+            report_dir = str(REPO / "work" / f"sail-{xlen}-max" / "reports")
+            summary = summarize_coverage(
+                report_dir, coverpoint_name,
+                effew_list=cat_config["effews"],
+                category=cat_config["prefix"]
+            )
+            summaries[xlen] = summary
+
+        result["coverage_summary"] = summaries
+
+    except subprocess.TimeoutExpired:
+        result["status"] = "timeout"
+    except Exception as e:
+        result["status"] = "error"
+        result["build_log"] = str(e)
+    finally:
+        print("Restoring testplans...")
+        restore_testplans()
+        result["duration_s"] = round(time.time() - start, 1)
+
+    return result
+
+
+def print_result(result: dict) -> None:
+    """Pretty-print coverage result."""
+    print(f"\n{'='*60}")
+    print(f"Coverpoint: {result['coverpoint']} ({result['category']})")
+    print(f"Status: {result['status']}")
+    print(f"Duration: {result['duration_s']}s")
+
+    for xlen, summary in result.get("coverage_summary", {}).items():
+        print(f"\n  {xlen}:")
+        print(f"    Total bins: {summary['total_bins']}")
+        print(f"    Covered: {summary['covered_bins']}")
+        print(f"    Uncovered: {summary['uncovered_bins']}")
+        if summary.get("uncovered_list"):
+            for item in summary["uncovered_list"]:
+                print(f"      - {item}")
+        elif summary["total_bins"] > 0:
+            print("    All bins covered!")
+    print(f"{'='*60}\n")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print(__doc__)
+        sys.exit(1)
+
+    cp_name = sys.argv[1]
+    cat = sys.argv[2] if len(sys.argv) > 2 else "Vf"
+
+    result = run_coverage(cp_name, cat)
+    print_result(result)
+
+    # Save result to JSON
+    output_file = SCRIPT_DIR / f"coverage_result_{cp_name}.json"
+    with open(output_file, "w") as f:
+        json.dump(result, f, indent=2)
+    print(f"Result saved to {output_file}")

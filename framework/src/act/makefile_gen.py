@@ -163,7 +163,7 @@ def gen_compile_targets(
         }"
         "# Generate signature file\n"
         f"{sig_file}: {sig_elf}\n"
-        f"\t{config.ref_model_exe} {'--trace-all' if debug else ''} \\\n"
+        f"\ttimeout 600 {config.ref_model_exe} {'--trace-all' if debug else ''} \\\n"
         f"{f'\t\t--trace-output {sig_trace_file} \\\n' if debug else ''}"
         f"\t\t--config {sail_config_path} \\\n"
         f"\t\t{ref_model_sig_flags} \\\n"
@@ -205,7 +205,7 @@ def gen_rvvi_targets(test_name: Path, base_dir: Path, config: Config) -> str:
         "# Run test on Sail to generate log\n"
         f"{sail_trace}: {elf}\n"
         f"\tln -sf {elf}.objdump {objdump_link} # Create symlink to objdump in coverage directory for easier debugging\n"
-        f"\t{config.ref_model_exe} --trace-all \\\n"
+        f"\ttimeout 600 {config.ref_model_exe} --trace-all \\\n"
         f"\t\t--config {config.dut_include_dir}/sail.json \\\n"  # TODO: don't hardcode sail config file
         f"\t\t{elf} \\\n"
         f"\t\t--trace-output {sail_trace} \\\n"

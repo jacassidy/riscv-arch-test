@@ -151,8 +151,36 @@ data = randomizeVectorInstructionData(test, sew, count, lmul=1, vs2_val_pointer=
 ```
 `registerCustomData(label, values, element_size)` creates a data label in the `.data` section. The `values` list is replicated to fill maxVLEN bits. `element_size` is 8/16/32/64. Labels are cleared between test files automatically.
 
+### Narrowing instructions and get_vr_element_zero()
+For narrowing instructions (e.g., `vfncvt.rod.f.f.w`), `get_vr_element_zero()` extracts element 0 at the OUTPUT SEW (from vtype.vsew), but vs2 has 2*SEW elements. This means it only gets the lower half of the source element. **Fix: use `ins.current.vs2_val[63:0]` directly** instead of `get_vr_element_zero()` for narrowing instruction templates.
+
+### FP lookup table coverpoints need both even and odd exponents
+For `vfrsqrt7` and `vfrec7` lookup table coverpoints, the coverage bins span the exponent/mantissa boundary. If the script only uses one exponent value (e.g., biased=16=0b10000), the exponent LSB is always 0 and only half the bins are covered. **Fix: generate values with both even and odd exponents** to cover all 128 lookup table entries.
+
+### VlsCustom coverage is impractical with sail
+All VlsCustom test files are ~4300 lines (due to `SIGUPD_COUNT 50000`). Even with only 1-2 test cases, the binary is large. Sail consistently times out even at 600s. All 7 VlsCustom coverpoints are blocked by this issue. These tests are intended for RTL (Wally) simulation, not sail.
+
+### RVVI fsflagsi CSR alias bug — fp_flags_clear cross failures
+`fsflagsi 0b00000` writes CSR 001 (fflags) but NOT CSR 003 (fcsr). The RVVI trace mirror maintains separate values for each CSR number. Templates that use `get_csr_val(..., "fcsr", "fflags")` read CSR 003, which retains the stale value from the previous FP instruction. This causes `fp_flags_clear` cross bins to fail for tests that follow flag-setting FP instructions.
+
+**Fix: Add "spacer" tests** after each flag-setting FP instruction. The spacer uses a non-flag-setting input (e.g., vfrec7(-inf)=−0 or vfrsqrt7(+inf)=+0) which writes CSR 003=0, clearing the stale fcsr for the next real test. Flag-setting inputs: ±0 (DZ), tiny subnormals (OF|NX for vfrec7), negative finites (NV for vfrsqrt7), sNaN (NV).
+
+### writeTest(vl=0) prevents vector data loading
+When `writeTest(vl=0)` is used, VL=0 is set BEFORE loading any vector register data via `vle*.v`. Since all vector loads respect VL, they load 0 elements. This makes it impossible to pre-load vs1/vs2 data for VL=0 test cases. This is a framework limitation.
+
 ## Coverpoint-Specific Notes
 
-- **cp_custom_FpRecSqrtEst_flag_edges**: 90% coverage. Cross with `fp_flags_clear` at 50% — see `coverage_issues/cp_custom_FpRecSqrtEst_flag_edges.md` for details. Script and template are correct.
+- **cp_custom_FpRecSqrtEst_edges**: 100% coverage. Script was fixed to use both even and odd exponents.
+- **cp_custom_FpRecipEst_edges**: 100% coverage. Script worked correctly out of the box.
+- **cp_custom_vfclass_onehot**: 100% coverage.
+- **cp_custom_vfncvt_rod_overflow**: 100% coverage (SEW32). Template fixed: `get_vr_element_zero()` → `ins.current.vs2_val[63:0]`.
+- **cp_custom_vfredosum_ordered_sum**: 100% coverage.
+- **cp_custom_FpRecSqrtEst_flag_edges**: 100% coverage. Fixed with spacer tests after flag-setting vfrsqrt7 (RVVI fsflagsi alias bug).
+- **cp_custom_FpRecipEst_flag_edges**: 100% coverage. Fixed with spacer tests after flag-setting vfrec7 (same RVVI alias bug).
 - **cp_custom_vfncvt_rup_overflow**: 100% coverage on RV64 for `vfncvt.f.f.w` and `vfncvt.rod.f.f.w`. The other 6 instructions (int-to-float, float-to-int) can't set fflags.OF with SEW=32: int64 max < float32 max (no overflow possible), and float-to-int overflow sets NV not OF. All RV32 tests fail due to `vs2_val` XLEN truncation. Template had two bugs fixed: (1) wrong CSR name `"frm"` → `"fcsr"` for frm sampling, (2) misleading comment about SEW meaning (corrected to reflect 64→32 narrowing, not 32→16).
 - **cp_custom_vfp_state (cp_custom_f_freg_write_vl0)**: 4/8 bins covered = 50% (cp_asm_count, std_vec, fd_changed_value, fp_flags_clear all 100%). Both crosses at 0% due to template issues: (1) `mstatus_prev_clean` checks `mstatus.vs==0` (Off), which traps on all vector instructions, contradicting `std_vec` (requires no trap). Should probably check `vs==2` (Clean), but even then vector setup instructions (vsetvli, vle) dirty VS before the test instruction. (2) `vfp_state_vfsqrt_flag_set` hardcodes `insn=="vfrsqrt7.v"`, impossible for `vfmv.f.s`. The `cp_custom_f_freg_write_vl0` specific bin (fd_changed_value) IS 100% covered. RV32/SEW64 skipped due to sd/fld needing D extension. See `coverage_issues/cp_custom_vfp_state.md`.
+- **cp_custom_vfredosum_NAN_vl0**: 55.55%. Cross at 0%. Framework limitation (vl=0 data loading) + wrong SEW32/64 bin values. See `coverage_issues/`.
+- **cp_custom_fmv_sf_vd_all_lmul**: 85.46%. Individual coverpoints (vd_all_regs, vtype_all_lmul) at 100%. Cross needs 128 bins (32 regs × 4 LMULs) but sail can only handle ~35 tests per file (under 950 lines). Script optimized to 35 tests: all 32 vd for LMUL=1, vd=0 for LMUL=2/4/8. Full cross needs RTL sim.
+- **cp_custom_fmv_fs_vs2_all_lmul**: 85.46%. Same structure and issue as fmv_sf_vd_all_lmul. Same optimization applied.
+- **cp_custom_vfp_NaN_input**: Running coverage — 101 instructions × 2 tests each. ~1 min/file, ~10 hours total. Each file is small (~300 lines) but sheer count is large.
+- **All VlsCustom coverpoints**: Blocked by sail timeout. SIGUPD_COUNT 50000 creates huge binaries.
