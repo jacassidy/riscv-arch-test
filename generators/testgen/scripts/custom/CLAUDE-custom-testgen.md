@@ -6,17 +6,20 @@ Each script in this directory is a single Python function that generates assembl
 
 ## Function Signature
 
-Every custom script exports exactly one function:
+Every custom script must use the `@register` decorator and export a function with this signature:
 
 ```python
-def make(instruction, sew, xlen, lmul=1):
+from coverpoint_registry import register
+
+@register("cp_custom_YOUR_NAME_HERE")
+def make(test, sew):
 ```
 
+The `@register` decorator is **required** — without it the script will not be discovered by the framework. See `custom/example.py` for a minimal working example.
+
 **Parameters:**
-- `instruction` (str): The RISC-V instruction mnemonic (e.g. `"vadd.vv"`, `"vle32.v"`)
+- `test` (str): The RISC-V instruction mnemonic (e.g. `"vadd.vv"`, `"vle32.v"`)
 - `sew` (int): Selected Element Width in bits (8, 16, 32, or 64)
-- `xlen` (int): XLEN (32 or 64)
-- `lmul` (int/float): LMUL value, default 1. May be fractional (0.5, 0.25, 0.125)
 
 ## Required Imports
 

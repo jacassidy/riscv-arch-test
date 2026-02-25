@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 
 # All paths relative to repo root
-REPO_ROOT = Path(__file__).resolve().parents[4]  # generators/testgen/scripts/custom -> root
+REPO_ROOT = Path(__file__).resolve().parents[5]  # generators/testgen/scripts/custom/claude-scripts -> root
 TESTPLANS_DIR = REPO_ROOT / "testplans"
 DUPLICATES_DIR = REPO_ROOT / "working-testplans" / "duplicates"
 MAKEFILE_PATH = REPO_ROOT / "Makefile"
@@ -30,7 +30,7 @@ CATEGORY_CONFIG = {
         "base_save": "Vf-save.csv",
         "effew_prefix": "VfCustom",
         "effews": ["16", "32", "64"],
-        "unrelated": ["Vls.csv", "VlsCustom.csv", "Vx.csv"],
+        "unrelated": ["Vls.csv", "VlsCustom.csv", "Vx.csv", "Vf.csv"],
     },
     "Vls": {
         "custom_csv": "VlsCustom",
@@ -39,7 +39,7 @@ CATEGORY_CONFIG = {
         "base_save": "Vls-save.csv",
         "effew_prefix": "VlsCustom",
         "effews": ["8", "16", "32", "64"],
-        "unrelated": ["Vf.csv", "VfCustom.csv", "Vx.csv"],
+        "unrelated": ["Vf.csv", "VfCustom.csv", "Vx.csv", "Vls.csv"],
     },
 }
 
@@ -109,23 +109,23 @@ def isolate_column(coverpoint_name: str, category: str = "Vf") -> None:
         if col in ALWAYS_KEEP_COLUMNS or col == column_name:
             keep_cols.append(i)
 
-    # 4. Write stripped CSV
+    # 4. Write stripped CSV — only rows that have 'x' in the coverpoint column
     stripped_rows = []
     stripped_header = [header[i] for i in keep_cols]
+    cp_col_idx_stripped = stripped_header.index(column_name)
     for row in rows:
         stripped_row = [row[i] if i < len(row) else "" for i in keep_cols]
-        # Only include rows that have a non-empty Instruction field
-        if stripped_row[0].strip():
+        # Only include rows that have a non-empty Instruction AND 'x' in the coverpoint column
+        if stripped_row[0].strip() and stripped_row[cp_col_idx_stripped].strip().lower() == "x":
             stripped_rows.append(stripped_row)
 
     output_csv = TESTPLANS_DIR / f"{config['custom_csv']}.csv"
     _write_csv(output_csv, stripped_header, stripped_rows)
 
-    # 5. Copy base CSV from duplicates
-    base_save = DUPLICATES_DIR / config["base_save"]
+    # 5. Delete base CSV (not needed for isolated custom coverpoint testing)
     base_dest = TESTPLANS_DIR / f"{config['base_csv']}.csv"
-    if base_save.exists():
-        shutil.copy2(base_save, base_dest)
+    if base_dest.exists():
+        base_dest.unlink()
 
     # 6. Delete unrelated testplan CSVs
     for unrelated in config["unrelated"]:

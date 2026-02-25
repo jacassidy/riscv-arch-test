@@ -22,13 +22,14 @@ import time
 from pathlib import Path
 
 # Resolve paths relative to repo root
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[5]
 CUSTOM_DIR = REPO_ROOT / "generators" / "testgen" / "scripts" / "custom"
+CLAUDE_SCRIPTS_DIR = CUSTOM_DIR / "claude-scripts"
 WORKING_TESTPLANS = REPO_ROOT / "working-testplans"
-PROGRESS_FILE = CUSTOM_DIR / "progress.json"
+PROGRESS_FILE = CLAUDE_SCRIPTS_DIR / "progress.json"
 
 # Import sibling modules
-sys.path.insert(0, str(CUSTOM_DIR))
+sys.path.insert(0, str(CLAUDE_SCRIPTS_DIR))
 from coverage_parser import format_coverage_for_prompt, summarize_coverage  # noqa: E402
 from prompt_builder import build as build_prompt  # noqa: E402
 from prompt_builder import find_coverage_template  # noqa: E402
@@ -48,6 +49,10 @@ DEFINITIONS_CSV = {
 # Category -> report directory pattern
 REPORT_DIRS = {
     "Vf": [
+        str(REPO_ROOT / "work" / "sail-rv32-max" / "reports"),
+        str(REPO_ROOT / "work" / "sail-rv64-max" / "reports"),
+    ],
+    "Vls": [
         str(REPO_ROOT / "work" / "sail-rv32-max" / "reports"),
         str(REPO_ROOT / "work" / "sail-rv64-max" / "reports"),
     ],
@@ -214,6 +219,7 @@ def process_coverpoint(entry: dict, category: str, progress: dict) -> dict:
             bins=entry.get("bins", ""),
             notes=entry.get("notes", ""),
             template_path=template_path,
+            category=category,
         )
 
         print(f"  Launching Claude CLI (instructions: {len(instructions)}, template: {'yes' if template_path else 'no'})...")

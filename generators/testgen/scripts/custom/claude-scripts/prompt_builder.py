@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[5]
 CUSTOM_DIR = REPO_ROOT / "generators" / "testgen" / "scripts" / "custom"
 TEMPLATES_DIR = REPO_ROOT / "generators" / "coverage" / "templates" / "vector"
 
@@ -53,6 +53,7 @@ def build(
     template_path: str | None = None,
     iteration: int = 0,
     previous_coverage: str = "",
+    category: str = "Vf",
 ) -> str:
     """Build the prompt string for a Claude CLI invocation.
 
@@ -72,7 +73,7 @@ def build(
         Prompt string for claude CLI
     """
     guide_path = CUSTOM_DIR / "CLAUDE-custom-testgen.md"
-    knowledge_path = CUSTOM_DIR / "knowledge.md"
+    knowledge_path = CUSTOM_DIR / "claude-scripts" / "knowledge.md"
     script_path = CUSTOM_DIR / f"{coverpoint_name}.py"
 
     sections = []
@@ -111,7 +112,7 @@ def build(
     sections.append(f"## Step {'4' if template_path else '3'}: Write the script\n")
     sections.append(f"Write a Python script at `{script_path}` that:")
     sections.append(f"- Uses the `@register(\"{coverpoint_name}\")` decorator from `coverpoint_registry`")
-    sections.append("- Exports a `make(instruction, sew, xlen, lmul=1)` function")
+    sections.append("- Exports a `make(test, sew)` function (test = instruction mnemonic, sew = element width)")
     sections.append("- Generates test cases that cover ALL bins in the coverage template")
     sections.append("- Follows the patterns in CLAUDE-custom-testgen.md")
     sections.append("- Imports helpers from `vector_testgen_common`\n")
@@ -122,13 +123,18 @@ def build(
     sections.append("Run the following commands to build and check coverage:")
     sections.append("```bash")
     sections.append(f"cd {REPO_ROOT}")
-    sections.append("make clean-tests && make vector-tests && make coverage")
+    sections.append("make clean && make vector-tests && make coverage")
     sections.append("```\n")
     sections.append("Then check the uncovered reports for your coverpoint:")
     sections.append("```bash")
+    cat_config = {
+        "Vf": {"prefix": "VfCustom", "effews": ["16", "32", "64"]},
+        "Vls": {"prefix": "VlsCustom", "effews": ["8", "16", "32", "64"]},
+    }
+    cfg = cat_config.get(category, cat_config["Vf"])
     for xlen in ["rv32", "rv64"]:
-        for effew in ["16", "32", "64"]:
-            report = REPO_ROOT / "work" / f"sail-{xlen}-max" / "reports" / f"VfCustom{effew}_uncovered.txt"
+        for effew in cfg["effews"]:
+            report = REPO_ROOT / "work" / f"sail-{xlen}-max" / "reports" / f"{cfg['prefix']}{effew}_uncovered.txt"
             sections.append(f"grep -A 5 '{coverpoint_name}' {report}")
     sections.append("```\n")
 
@@ -142,7 +148,7 @@ def build(
     # Iteration limit
     step_num += 1
     sections.append(f"## Step {step_num}: Iterate if needed\n")
-    sections.append("If coverage is not 100%, update the script and re-run `make clean-tests && make vector-tests && make coverage`.")
+    sections.append("If coverage is not 100%, update the script and re-run `make clean && make vector-tests && make coverage`.")
     sections.append("You may iterate up to 3 times. Focus on the uncovered bins shown in the report.\n")
 
     # Knowledge update

@@ -5,13 +5,13 @@
     // Narrowing word-to-half with round-up: confirm overflow is recognized in fflags
 
 
-    // SEW = 32 (source is 32-bit word, narrowing dest is 16-bit half)
+    // SEW = 32 (destination is 32-bit single, source is 64-bit double)
     vtype_sew_32: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vsew") {
         bins e32 = {2};
     }
 
     // Rounding mode = RUP (round up, frm=3)
-    frm_rup: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "frm", "frm") {
+    frm_rup: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "fcsr", "frm") {
         bins rup = {3};
     }
 
