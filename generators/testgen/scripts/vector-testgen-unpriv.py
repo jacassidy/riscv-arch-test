@@ -18,6 +18,10 @@ import os
 import re
 from random import randint, seed
 
+import custom # custom coverpoint generator scripts
+from coverpoint_registry import import_all_modules
+from coverpoint_registry import REGISTRY
+
 import vector_testgen_common as common
 from vector_testgen_common import (
   ARCH_VERIF,
@@ -928,9 +932,10 @@ def makeTest(coverpoints, test, sew=None):
     elif coverpoint == "cp_custom_vshift_upperbits_rs1_ones"          : make_custom_vshift_upperbits_r1_ones(test, sew, "rs1")
     elif coverpoint == "cp_custom_vshiftn_upperbits_vs1_ones"         : make_custom_vshift_upperbits_r1_ones(test, sew, "vs1", narrow=True)
     elif coverpoint == "cp_custom_vshiftn_upperbits_rs1_ones"         : make_custom_vshift_upperbits_r1_ones(test, sew, "rs1", narrow=True)
-    elif coverpoint == "cp_custom_vindexedges_index_ge_vlmax"       : make_custom_vindexedges_index_ge_vlmax(test, sew)
-    elif coverpoint == "cp_custom_vindexedges_index_gt_vl_lt_vlmax" : make_custom_vindexedges_index_gt_vl_lt_vlmax(test, sew)
+    elif coverpoint == "cp_custom_vindexedges_index_ge_vlmax"         : make_custom_vindexedges_index_ge_vlmax(test, sew)
+    elif coverpoint == "cp_custom_vindexedges_index_gt_vl_lt_vlmax"   : make_custom_vindexedges_index_gt_vl_lt_vlmax(test, sew)
     elif coverpoint[:2] != "cp"                                       : pass # skip all the helper coverpoints
+    elif coverpoint in REGISTRY                                       : REGISTRY[coverpoint](test, sew)   # call the registered function (cp_custom_**)
     else:
       print("Warning: " + coverpoint + " not implemented yet for " + test)
 
@@ -1099,6 +1104,9 @@ def getExtensions():
 if __name__ == '__main__':
   common.writeLine        = writeLine
 
+  # import custom coverpoints for use
+  import_all_modules(custom)
+
   # TODO: auipc missing, check whatelse is missing in ^these^ types
 
   author = "kacassidy@g.hmc.edu"
@@ -1160,7 +1168,7 @@ if __name__ == '__main__':
       basepathname = pathname
       includeVData = " "
 
-      for pattern in [r'/Vx(\d+)$', r'/Vls(\d+)$', r'/Vf(\d+)$']:
+      for pattern in [r'/Vx(\d+)$', r'/Vls(\d+)$', r'/Vf(\d+)$', r'/VlsCustom(\d+)$', r'/VfCustom(\d+)$']:
         match = re.search(pattern, pathname)
         if match:
             sew = int(match.group(1))
@@ -1209,7 +1217,7 @@ if __name__ == '__main__':
           float_en = "\n# set mstatus.FS to 10 to enable fp\nli t0,0x4000\ncsrs mstatus, t0\n\n"
           f.write(float_en)
 
-        for pattern in [r'/Vx(\d+)$', r'/Vls(\d+)$', r'/Vf(\d+)$']:
+        for pattern in [r'/Vx(\d+)$', r'/Vls(\d+)$', r'/Vf(\d+)$', r'/VlsCustom(\d+)$', r'/VfCustom(\d+)$']:
           sew_match = re.search(pattern, pathname)
           if sew_match:
               sew = int(sew_match.group(1))

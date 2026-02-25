@@ -2341,16 +2341,16 @@ def readTestplans(priv=False):
                                     cps.append(key)
                         tp[instr] = cps
                 testplans[arch] = tp
-                if (arch == "Vx"):
+                if ("Vx" in arch):
                     for effew in ["8", "16", "32", "64"]:
-                        testplans["Vx" + effew] = tp
-                    del testplans["Vx"]
-                if (arch == "Vls"):
+                        testplans[arch + effew] = tp
+                    del testplans[arch]
+                if ("Vls" in arch):
                     for effew in ["8", "16", "32", "64"]:
-                        testplans["Vls" + effew] = tp
-                    del testplans["Vls"]
-                if (arch == "Vf"):
+                        testplans[arch + effew] = tp
+                    del testplans[arch]
+                if ("Vf" in arch):
                     for effew in ["16", "32", "64"]:
-                        testplans["Vf" + effew] = tp
-                    del testplans["Vf"]
+                        testplans[arch + effew] = tp
+                    del testplans[arch]
     return testplans

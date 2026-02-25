@@ -13,7 +13,7 @@ WORKDIR_REF ?= work-ref
 #Vx8,Vx16,Vx32,Vx64
 #Vls8,Vls16,Vls32,Vls64
 #Vf16,Vf32,Vf64
-EXTENSIONS  ?= VfCustom # Extensions to generate tests for. Leave blank to generate for all tests.
+EXTENSIONS  ?= VfCustom16,VfCustom32,VfCustom64 # Extensions to generate tests for. Leave blank to generate for all tests.
 EXCLUDE_EXTENSIONS ?= # Extensions to exclude from test generation. Applies as a negative filter after EXTENSIONS.
 DEBUG       ?= # Set to True to generate debug output (signature objdump and trace files). Leave blank for no debug output.
 FAST        ?= # Set to True to disable objdump generation for faster builds. Leave blank for normal builds. Conflicts with DEBUG.
