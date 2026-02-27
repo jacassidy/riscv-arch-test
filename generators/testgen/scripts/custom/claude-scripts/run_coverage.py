@@ -27,7 +27,7 @@ from testplan_manager import isolate_column, restore_testplans
 from coverage_parser import summarize_coverage
 
 
-def run_coverage(coverpoint_name: str, category: str = "Vf", timeout_minutes: int = 30) -> dict:
+def run_coverage(coverpoint_name: str, category: str = "Vf", timeout_minutes: int = 60) -> dict:
     """Isolate one column, build, run coverage, restore CSVs.
 
     Returns dict with keys: status, coverage_summary, build_log, coverage_log, duration_s
@@ -51,7 +51,7 @@ def run_coverage(coverpoint_name: str, category: str = "Vf", timeout_minutes: in
         # 2. Clean
         print("[2/4] Cleaning...")
         proc = subprocess.run(
-            ["make", "clean"],
+            ["make", "--jobs=16", "clean"],
             cwd=str(REPO), capture_output=True, text=True, timeout=120
         )
         if proc.returncode != 0:
@@ -62,7 +62,7 @@ def run_coverage(coverpoint_name: str, category: str = "Vf", timeout_minutes: in
         # 3. Generate tests
         print("[3/4] Generating tests (make vector-tests)...")
         proc = subprocess.run(
-            ["make", "vector-tests"],
+            ["make", "--jobs=16", "vector-tests"],
             cwd=str(REPO), capture_output=True, text=True, timeout=600
         )
         if proc.returncode != 0:
@@ -71,19 +71,30 @@ def run_coverage(coverpoint_name: str, category: str = "Vf", timeout_minutes: in
             return result
         result["build_log"] = proc.stdout[-2000:]
 
-        # 4. Run coverage
-        print("[4/4] Running coverage (make coverage)...")
+        # 4. Run coverage (make --jobs -k coverage)
+        print("[4/4] Running coverage (make --jobs -k coverage)...")
         proc = subprocess.run(
-            ["make", "coverage"],
+            ["make", "--jobs=16", "-k", "coverage"],
             cwd=str(REPO), capture_output=True, text=True,
             timeout=timeout_minutes * 60
         )
-        # Coverage uses -k flag so partial failures are OK
         result["coverage_log"] = proc.stdout[-5000:] + "\n---STDERR---\n" + proc.stderr[-3000:]
         if proc.returncode != 0:
             result["status"] = "coverage_partial"
         else:
             result["status"] = "ok"
+
+        # If coverage reports missing, force them by running coverage in work dirs
+        for xlen_dir in ["sail-rv32-max", "sail-rv64-max"]:
+            summary_file = REPO / "work" / xlen_dir / "reports" / "_overall_summary.txt"
+            work_dir = REPO / "work" / xlen_dir
+            if work_dir.exists() and not summary_file.exists():
+                print(f"  Forcing coverage reports for {xlen_dir}...")
+                subprocess.run(
+                    ["make", "--jobs=16", "-k", "-i", "coverage"],
+                    cwd=str(work_dir), capture_output=True, text=True,
+                    timeout=timeout_minutes * 60
+                )
 
         # 5. Parse reports
         config = {"Vf": {"effews": ["16", "32", "64"], "prefix": "VfCustom"},

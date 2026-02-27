@@ -44,21 +44,22 @@
     "timestamp": "2026-02-25 06:23:00"
   },
   "cp_custom_vfp_state": {
-    "status": "partial",
-    "coverage": "50%",
-    "issue": "Template bugs: mstatus check and hardcoded instruction name. See coverage_issues/",
-    "timestamp": "2026-02-24"
+    "status": "completed",
+    "coverage": "100% rv64; rv32 VfCustom16/32=100%, VfCustom64=0% (sd/fld needs zilsd on rv32)",
+    "fix": "Template simplified. sew>xlen guard correct for Vf (avoids zilsd compile error).",
+    "timestamp": "2026-02-25 18:50:00"
   },
   "cp_custom_vfredosum_NAN_vl0": {
-    "status": "blocked",
-    "coverage": "55.55%",
-    "issue": "Framework limitation: writeTest(vl=0) prevents data loading. Template has wrong bin values for SEW32/64.",
-    "timestamp": "2026-02-25 05:40:00"
+    "status": "partial",
+    "coverage": "vfredosum.vs=100%; vfwredosum.vs=87.5% (template width mismatch for widened variant)",
+    "fix": "Two-test approach works for vfredosum. vfwredosum template uses get_vr_element_zero at SEW but vs1 is at 2*SEW.",
+    "timestamp": "2026-02-25 19:00:00"
   },
   "cp_custom_vfp_flags": {
-    "status": "untested",
-    "issue": "100+ instructions, script rewritten but too slow for sail",
-    "timestamp": "2026-02-25"
+    "status": "partial",
+    "coverage": "30-68% per instruction. Many at 0% (vfclass/vfmerge/vmf*/vfsgnj/vfslide/vfreduce).",
+    "issue": "Needs more flag-transition input values per instruction. Script generates basic tests only.",
+    "timestamp": "2026-02-25 19:30:00"
   },
   "cp_custom_vfp_NaN_input": {
     "status": "untested",
@@ -78,19 +79,22 @@
     "timestamp": "2026-02-25 08:12:00"
   },
   "cp_custom_maskLS": {
-    "status": "blocked",
-    "issue": "SIGUPD_COUNT 50000 creates huge binaries. Sail timeout.",
-    "timestamp": "2026-02-25"
+    "status": "completed",
+    "coverage": "100% (VlsCustom16/32/64); VlsCustom8=0% inherent (SEW>8 required)",
+    "fix": "Removed sew>xlen guard. SIGUPD_COUNT=5000 fixes sail timeout.",
+    "timestamp": "2026-02-25 18:00:00"
   },
   "cp_custom_vwholeRegLS_vill": {
-    "status": "blocked",
-    "issue": "VlsCustom test files ~4300 lines. Sail timeout.",
-    "timestamp": "2026-02-25"
+    "status": "partial",
+    "coverage": "VlsCustom8=100%; VlsCustom16/32/64=66.66%",
+    "issue": "Coverage framework bug: vill=1 shown in RVVI traces but not reported by coverage tool for EFFEW>8",
+    "timestamp": "2026-02-25 17:30:00"
   },
   "cp_custom_vwholeRegLS_lmul": {
-    "status": "blocked",
-    "issue": "Same as vwholeRegLS_vill",
-    "timestamp": "2026-02-25"
+    "status": "completed",
+    "coverage": "100%",
+    "fix": "Removed sew>xlen guard. SIGUPD_COUNT=5000 fixes sail timeout.",
+    "timestamp": "2026-02-25 17:00:00"
   },
   "cp_custom_ffLS_update_vl": {
     "status": "blocked",

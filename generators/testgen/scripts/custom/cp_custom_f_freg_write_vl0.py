@@ -22,7 +22,7 @@ from vector_testgen_common import (
 
 @register("cp_custom_vfp_state")
 def make(test, sew):
-    # Skip SEW=64 on RV32: framework generates sd/fld which need D/zilsd
+    # Skip SEW=64 on RV32: framework generates sd/fld which need zilsd
     if sew > common.xlen:
         return
 

@@ -28,7 +28,14 @@ def parse_uncovered(report_dir: str, coverpoint_name: str, effew_list: list[str]
     for effew in effew_list:
         report_file = Path(report_dir) / f"{category}{effew}_uncovered.txt"
         if not report_file.exists():
-            results[effew] = {"_error": f"Report file not found: {report_file}"}
+            # No uncovered file could mean 100% covered or no tests run.
+            # Check if the _report.txt exists to distinguish.
+            report_txt = Path(report_dir) / f"{category}{effew}_report.txt"
+            if report_txt.exists():
+                # Report exists but no uncovered file → 100% covered
+                results[effew] = {}
+            else:
+                results[effew] = {"_error": f"No report files found for {category}{effew}"}
             continue
 
         results[effew] = _parse_report_file(report_file, coverpoint_name)
@@ -157,6 +164,42 @@ def format_coverage_for_prompt(report_dirs: list[str], coverpoint_name: str, eff
             lines.append("    All bins covered!")
 
     return "\n".join(lines)
+
+
+def parse_overall_summary(report_dir: str) -> dict:
+    """Parse the _overall_summary.txt to get per-covergroup coverage.
+
+    Returns:
+        Dict mapping covergroup name → {"metric": float, "status": str}
+    """
+    summary_file = Path(report_dir) / "_overall_summary.txt"
+    if not summary_file.exists():
+        return {}
+
+    results = {}
+    for line in summary_file.read_text().strip().split("\n"):
+        if line.startswith("Covergroup") or not line.strip():
+            continue
+        parts = line.split()
+        if len(parts) >= 5:
+            name = parts[0]
+            metric = float(parts[1].rstrip("%"))
+            status = parts[4]
+            results[name] = {"metric": metric, "status": status}
+    return results
+
+
+def get_overall_coverage(report_dir: str) -> tuple[int, int, int]:
+    """Get overall coverage from summary: (total, covered, zero).
+
+    Returns:
+        Tuple of (total_covergroups, covered_at_100, at_zero)
+    """
+    results = parse_overall_summary(report_dir)
+    total = len(results)
+    covered = sum(1 for v in results.values() if v["status"] == "Covered")
+    zero = sum(1 for v in results.values() if v["status"] == "ZERO")
+    return total, covered, zero
 
 
 if __name__ == "__main__":

@@ -33,9 +33,6 @@ from vector_testgen_common import (
 
 @register("cp_custom_ffLS_update_vl")
 def make(test, sew):
-    if sew > common.xlen:
-        return
-
     # Generate with LMUL=2 and vl=vlmax, masked with v0=1 pattern
     description = f"cp_custom_ffLS_update_vl ({test}, lmul=2, vl=vlmax, masked)"
     try:

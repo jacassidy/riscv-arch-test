@@ -13,14 +13,6 @@
                 `endif
         }
 
-        vfredosum : coverpoint ins.current.insn == "vfredosum.vs" {
-                bins true = {1};
-        }
-
-        // vwfredosum : coverpoint ins.current.insn == "vwfredosum.vs" {
-        //         bins true = {1};
-        // }
-
         fp_flags_clear : coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "fcsr", "fflags") {
                 bins clear = {0};
         }

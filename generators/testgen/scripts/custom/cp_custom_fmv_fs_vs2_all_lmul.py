@@ -4,10 +4,9 @@
 Confirm vfmv.f.s ignores LMUL for source register.
 Template cross: std_vec × vs2_all_regs × vtype_all_lmul
 
-vs2_all_regs bins on insn[24:20] = all 32 registers.
-vtype_all_lmul bins on vlmul = {5(f8), 6(f4), 7(f2), 0(1), 1(2), 2(4), 3(8)}.
-
-We sweep all 32 vs2 values × 4 LMUL settings = 56 tests per SEW.
+Strategy: 32 vs2 values at LMUL=1 (covers all vs2_all_regs bins) +
+1 vs2 per additional LMUL (covers LMUL bins). Total ~38 tests.
+Full cross coverage (32×7=224 bins) requires RTL simulation.
 """
 
 from coverpoint_registry import register
@@ -20,8 +19,8 @@ from vector_testgen_common import (
     vsAddressCount,
 )
 
-# Integer LMULs only to avoid sail timeout.
-LMULS = [1, 2, 4, 8]
+# All LMUL values including fractional
+ALL_LMULS = [0.125, 0.25, 0.5, 1, 2, 4, 8]
 
 
 @register("cp_custom_fmv_fs_vs2_all_lmul")
@@ -29,11 +28,8 @@ def make(test, sew):
     if sew > common.xlen:
         return
 
-    # All 32 vs2 for LMUL=1 (covers all vs2_all_regs bins).
-    # For LMUL>1: 1 vs2 value to hit the LMUL bins while keeping
-    # total test count low enough to avoid sail timeout.
-    # Total: 32 + 1 + 1 + 1 = 35 tests per SEW.
-    for lmul in LMULS:
+    for lmul in ALL_LMULS:
+        # LMUL=1: all 32 regs. Others: just vs2=0 to hit the LMUL bin.
         vs2_values = range(32) if lmul == 1 else [0]
         for vs2 in vs2_values:
             description = f"cp_custom_fmv_fs_vs2_all_lmul (vs2=v{vs2}, lmul={lmul})"

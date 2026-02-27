@@ -8,6 +8,11 @@ Template cross: fp_flags_clear × vtype_prev_vill_clear × vl_zero ×
                 vstart_zero × vs1_0_qNAN (iff no trap)
 
 We need: vl=0, vstart=0, vs1[0]=qNaN, fflags clear, vill clear.
+
+Strategy: Two-test approach to work around writeTest(vl=0) preventing
+data loading. Test 1 loads qNaN into a pinned vs1 register with vl=1.
+Test 2 runs with vl=0 — vs1 retains qNaN from test 1 because vle
+loads 0 elements and doesn't overwrite the register.
 """
 
 from coverpoint_registry import register
@@ -28,6 +33,9 @@ QNAN = {
     64: 0x7FF8000000000000,
 }
 
+# Pin vs1 to a fixed register so test 2 retains data from test 1
+VS1_REG = 8
+
 
 @register("cp_custom_vfredosum_NAN_vl0")
 def make(test, sew):
@@ -41,12 +49,24 @@ def make(test, sew):
     label = f"custom_redosum_qnan_sew{sew}"
     registerCustomData(label, [qnan], element_size=sew)
 
-    description = f"cp_custom_vfredosum_NAN_vl0 ({test}, vl=0, vs1[0]=qNaN)"
+    # Test 1: Load qNaN into vs1=v8 with vl=1 (populates vector register)
+    description = f"cp_custom_vfredosum_NAN_vl0 setup ({test}, vl=1, vs1[0]=qNaN)"
     data = randomizeVectorInstructionData(
         test, sew, getBaseSuiteTestCount(),
-        lmul=1, vs1_val_pointer=label,
+        lmul=1, vs1=VS1_REG, vs1_val_pointer=label,
     )
-    # vl=0, vstart=0 (default)
+    writeTest(description, test, data, sew=sew, lmul=1, vl=1)
+    incrementBasetestCount()
+    vsAddressCount()
+
+    # Test 2: Run with vl=0 — vs1=v8 retains qNaN from test 1
+    # The framework tries to load data via vle but vl=0 loads nothing,
+    # so v8 keeps its qNaN value. Coverage cross fires on this instruction.
+    description = f"cp_custom_vfredosum_NAN_vl0 ({test}, vl=0, vs1[0]=qNaN retained)"
+    data = randomizeVectorInstructionData(
+        test, sew, getBaseSuiteTestCount(),
+        lmul=1, vs1=VS1_REG, vs1_val_pointer=label,
+    )
     writeTest(description, test, data, sew=sew, lmul=1, vl=0)
     incrementBasetestCount()
     vsAddressCount()

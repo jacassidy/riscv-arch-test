@@ -2,19 +2,14 @@
 """Custom coverpoint: cp_custom_vwholeRegLS_vill
 
 Check that whole register loads and stores are not affected by the vill bit.
-Template: single coverpoint (not a cross) checking vill==1 AND vstart==0 AND
-vl!=0 AND no trap, all simultaneously.
+Template: single coverpoint checking vill==1 AND vstart==0 AND no trap.
 
-Whole register LS instructions ignore vtype (including vill), so they should
-execute without trapping even when vill is set.
-
-We need to set vill=1 before the instruction. This can be done by setting
-an illegal vtype via vsetvli with an unsupported SEW/LMUL combination.
-The writeTest function doesn't support setting vill directly, but we can
-use vstart=0 and vl!=0 (both defaults).
-
-NOTE: The framework may not support vill=1 directly. If the test traps
-because vill is not set, this is a framework limitation.
+Strategy: Two-test approach.
+1. First test with valid vtype (sew=8, lmul=1) loads data into registers
+   and sets up rs1 with a valid memory address.
+2. Second test uses an unsupported SEW/LMUL combo (sew=64, lmul=0.125)
+   which sets vill=1. The whole register LS instruction should still
+   execute without trapping because it ignores vtype.
 """
 
 from coverpoint_registry import register
@@ -30,20 +25,27 @@ from vector_testgen_common import (
 
 @register("cp_custom_vwholeRegLS_vill")
 def make(test, sew):
-    if sew > common.xlen:
-        return
-
-    # Whole register LS uses vl=NFIELDS*VLEN/EEW, ignoring vtype.
-    # Generate a basic test with default vtype settings.
-    # The coverage template checks vill==1 at SAMPLE_BEFORE; we need
-    # the framework to support vill=1 which it currently doesn't.
-    # Generate tests anyway to get std_vec coverage flowing.
-    description = f"cp_custom_vwholeRegLS_vill ({test})"
+    # Test 1: Normal test with valid vtype to set up memory address in rs1
+    description = f"cp_custom_vwholeRegLS_vill setup ({test}, valid vtype)"
     try:
         data = randomizeVectorInstructionData(
             test, sew, getBaseSuiteTestCount(), lmul=1,
         )
         writeTest(description, test, data, sew=sew, lmul=1, vl=1)
+        incrementBasetestCount()
+        vsAddressCount()
+    except ValueError:
+        pass
+
+    # Test 2: Use unsupported SEW/LMUL to set vill=1
+    # sew=64, lmul=0.125 → SEW/LMUL = 512 > VLEN, sets vill=1
+    # Whole register LS ignores vtype, so should not trap
+    description = f"cp_custom_vwholeRegLS_vill ({test}, vill=1 via sew=64/lmul=mf8)"
+    try:
+        data = randomizeVectorInstructionData(
+            test, sew, getBaseSuiteTestCount(), lmul=1,
+        )
+        writeTest(description, test, data, sew=64, lmul=0.125, vl=0)
         incrementBasetestCount()
         vsAddressCount()
     except ValueError:

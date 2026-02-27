@@ -24,9 +24,6 @@ LMULS = [1, 2, 4, 8]
 
 @register("cp_custom_vwholeRegLS_lmul")
 def make(test, sew):
-    if sew > common.xlen:
-        return
-
     for lmul in LMULS:
         description = f"cp_custom_vwholeRegLS_lmul ({test}, lmul={lmul}, vl=vlmax)"
         try:

@@ -35,9 +35,6 @@ def _get_nfields(instruction):
 
 @register("cp_custom_indexed_emul_data_only")
 def make(test, sew):
-    if sew > common.xlen:
-        return
-
     nf = _get_nfields(test)
 
     # Test each LMUL*NFIELDS = 8 boundary case

@@ -27,9 +27,6 @@ from random import randint
 
 @register("cp_custom_masked_v0_operand")
 def make(test, sew):
-    if sew > common.xlen:
-        return
-
     # Part 1: masked with vs2=v0, vd != v0
     vd = randint(1, 31)  # any register except v0
     description = f"cp_custom_masked_vs2_v0 ({test}, vs2=v0, vd=v{vd}, masked)"
