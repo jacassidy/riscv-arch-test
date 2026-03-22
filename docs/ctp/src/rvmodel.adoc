@@ -31,17 +31,19 @@ The RVMODEL DUT-Specific Macros are given in <<t-rvmodel>>. The Mode column indi
 |RVMODEL_HALT_FAIL|Terminate test with a fail indication.  When the test is run in simulation, this should end the simulation. | Any
 |RVMODEL_IO_INIT(_R1, _R2, _R3)|Initialization steps needed prior to writing to the console. _R1, _R2, and _R3 are temporary registers that may be trashed by the macro. | Machine
 |RVMODEL_IO_WRITE_STR(_R1, _R2, _R3, _STR_PTR)|Write a null-terminated ASCII string to the console, where _R1, _R2, and _R3 are temporary registers that may be trashed by the macro and _STR_PTR is a register containing the address of the first byte of the string. | Any
-|RVMODEL_SET_MEXT_INT|Sets the Machine External Interrupt `mip.MEIP` using platform-specific interrupt controller, if supported| Machine or Supervisor
-|RVMODEL_CLR_MEXT_INT|Clears the Machine External Interrupt `mip.MEIP` using platform-specific interrupt controller | Machine or Supervisor
-|RVMODEL_SET_MSW_INT|Sets the Machine Software Interrupt `mip.MSIP` using a memory-mapped control register, if supported | Machine or Supervisor
-|RVMODEL_CLR_MSW_INT|Clears the Machine Software Interrupt `mip.MSIP` using a memory-mapped control register | Machine or Supervisor
-|RVMODEL_SET_SEXT_INT|Sets the Supervisor External Interrupt `sip.SEIP` using platform-specific interrupt controller, if supported | Machine or Supervisor
-|RVMODEL_CLR_SEXT_INT|Clears the Supervisor External Interrupt `sip.SEIP` using platform-specific interrupt controller | Machine or Supervisor
-|RVMODEL_SET_SSW_INT|Sets the Supervisor Software Interrupt `sip.SSIP` using a platform-specific interrupt controller, if supported | Machine or Supervisor
-|RVMODEL_CLR_SSW_INT|Clears the Supervisor Software Interrupt `sip.SSIP` by using a platform-specific interrupt controller, as applicable | Machine or Supervisor
+|RVMODEL_SET_MEXT_INT(_R1, _R2)|Sets the Machine External Interrupt `mip.MEIP` using platform-specific interrupt controller, if supported. _R1 and _R2 are temporary registers that may be trashed by the macro.| Machine or Supervisor
+|RVMODEL_CLR_MEXT_INT(_R1, _R2)|Clears the Machine External Interrupt `mip.MEIP` using platform-specific interrupt controller. _R1 and _R2 are temporary registers that may be trashed by the macro. | Machine or Supervisor
+|RVMODEL_SET_MSW_INT(_R1, _R2)|Sets the Machine Software Interrupt `mip.MSIP` using a memory-mapped control register, if supported. _R1 and _R2 are temporary registers that may be trashed by the macro. | Machine or Supervisor
+|RVMODEL_CLR_MSW_INT(_R1, _R2)|Clears the Machine Software Interrupt `mip.MSIP` using a memory-mapped control register. _R1 and _R2 are temporary registers that may be trashed by the macro. | Machine or Supervisor
+|RVMODEL_SET_SEXT_INT(_R1, _R2)|Sets the Supervisor External Interrupt `sip.SEIP` using platform-specific interrupt controller, if supported. _R1 and _R2 are temporary registers that may be trashed by the macro. | Machine or Supervisor
+|RVMODEL_CLR_SEXT_INT(_R1, _R2)|Clears the Supervisor External Interrupt `sip.SEIP` using platform-specific interrupt controller. _R1 and _R2 are temporary registers that may be trashed by the macro. | Machine or Supervisor
+|RVMODEL_SET_SSW_INT(_R1, _R2)|Sets the Supervisor Software Interrupt `sip.SSIP` using a platform-specific interrupt controller, if supported. _R1 and _R2 are temporary registers that may be trashed by the macro. | Machine or Supervisor
+|RVMODEL_CLR_SSW_INT(_R1, _R2)|Clears the Supervisor Software Interrupt `sip.SSIP` by using a platform-specific interrupt controller, as applicable. _R1 and _R2 are temporary registers that may be trashed by the macro. | Machine or Supervisor
+|RVMODEL_INTERRUPT_LATENCY|Expected latency (in cycles/NOPs) for interrupt trap processing. Ensures handler completes before test continues. | n/a
 |RVMODEL_ACCESS_FAULT_ADDRESS|The base address of a region of at least 128 bytes that causes an access fault when any part of the region is read or written. This is used to test exceptions. | n/a
 |RVMODEL_MTIME_ADDRESS|The address of the memory-mapped `mtime` register, used for timer accesses and interrupts. | n/a
 |RVMODEL_MTIMECMP_ADDRESS|The address of the memory-mapped `mtimecmp` register, used for timer interrupts. | n/a
+|RVMODEL_TIMER_INT_SOON_DELAY|The delay (in cycles) before a timer interrupt fires when using `set_mtimer_int_soon()`. Sets `mtimecmp = mtime + delay`. | n/a
 |RVMODEL_DATA_SECTION|Model-specific data that will be placed in a .data section. Used for memory-mapped regions like `tohost`/`fromhost`.  Macro can be empty if not needed. | n/a
 |===
 
@@ -61,13 +63,13 @@ At the end of RVMODEL_BOOT, the system should be in conforming machine mode, wit
 
 === RVMODEL Macros for Spike and SAIL
 
-RVMODEL macros for Spike are implemented in https://github.com/riscv-non-isa/riscv-arch-test/blob/act4/config/spike/spike-rv64-max/rvmodel_macros.h[spike-rv64-max/rvmodel_macros.h].  They use HTIF for termination, and write to a virtual UART at address 0x1000_0000 to print characters.  TODO: Interrupts
+RVMODEL macros for Spike are implemented in https://github.com/riscv/riscv-arch-test/blob/act4/config/spike/spike-rv64-max/rvmodel_macros.h[spike-rv64-max/rvmodel_macros.h].  They use HTIF for termination, and write to a virtual UART at address 0x1000_0000 to print characters.  TODO: Interrupts
 
-RVMODEL macros for Sail are implemented in https://github.com/riscv-non-isa/riscv-arch-test/blob/act4/tests/env/sail_test.h[tests/env/sail_test.h].  They are similar to Spike but use HTIF for printing.  TODO: interrupts
+RVMODEL macros for the RISC-V Sail model are implemented in https://github.com/riscv/riscv-arch-test/blob/act4/tests/env/sail_test.h[tests/env/sail_test.h].  They are similar to Spike but use HTIF for printing.  TODO: interrupts
 
 === Host Target Interface
 
-The https://github.com/Timmmm/htif_spec/releases/download/v0.0.1/htif-0.0.1.pdf[host target interface] (HTIF) is an unofficial semihosting method that has become widely used by RISC-V simulators (Spike, QEMU, Sail) and test benches.  If your SystemVerilog testbench supports it, you can share the same HTIF code as Spike and Sail for the  RVMODEL_HALT_PASS, RVMODEL_HALT_FAIL, and RVMODEL_IO_WRITE_STR DUT-specific macros.  A drawback is that your testbench needs to parse the ELF labels to find the address of the `tohost` symbol, which is used for HTIF communication.  If your testbench does not support HTIF, you can implement the RVMODEL macros using other methods, such as memory-mapped I/O to a SoC peripheral or an address monitored by the testbench.
+The https://github.com/Timmmm/htif_spec/releases/download/v0.0.1/htif-0.0.1.pdf[host target interface] (HTIF) is an unofficial semihosting method that has become widely used by RISC-V simulators (Spike, QEMU, RISC-V Sail) and test benches.  If your SystemVerilog testbench supports it, you can share the same HTIF code as Spike and RISC-V Sail for the  RVMODEL_HALT_PASS, RVMODEL_HALT_FAIL, and RVMODEL_IO_WRITE_STR DUT-specific macros.  A drawback is that your testbench needs to parse the ELF labels to find the address of the `tohost` symbol, which is used for HTIF communication.  If your testbench does not support HTIF, you can implement the RVMODEL macros using other methods, such as memory-mapped I/O to a SoC peripheral or an address monitored by the testbench.
 
 For example, the testbench might implement the [unofficial HTIF semihosting specification] and print the character `A` by writing the doubleword 0x01010000_00000041 to a label called `tohost` in the .data section of the test program.  The most significant byte is the device (console), the next byte is the command (write), and the least significant 4 bytes are the data (the ASCII code for `A`).  Terminating with a failure code is done by writing the doubleword 0x00000000_00000003 to `tohost`, and terminating with a success code is done by writing the doubleword 0x00000000_00000001 to `tohost`.
 
@@ -75,7 +77,7 @@ Note that writing the upper word of the doubleword to `tohost` with `sd` is only
 
 === RVMODEL Macros for Other DUTs
 
-If you have a simple DUT designed to match the behavior of Sail and Spike, you may be able to implement the RVMODEL macros with the same code used by Sail.  Your RVMODEL_BOOT macro can be empty.  The interrupt macros for unsupported privilege modes can be empty.
+If you have a simple DUT designed to match the behavior of RISC-V Sail and Spike, you may be able to implement the RVMODEL macros with the same code used by RISC-V Sail.  Your RVMODEL_BOOT macro can be empty.  The interrupt macros for unsupported privilege modes can be empty.
 
 If you have a complex DUT, you presumably have a team of sophisticated verification engineers who can adapt the example macros to your DUT's requirements.
 

@@ -4,3 +4,5 @@
 - When updating any .md file, actively look for content to delete — if you're not occasionally removing/refactoring something, you're not changing enough.
 - Always run `make` with `-j16`. Example: `make clean && make vector-tests -j16 && make coverage -j16`
 - Do NOT read make/build run logs inline — they contain too much noise. Check log files directly only when there is an error to diagnose.
+- Always use `timeout Xs` AND `--inst-limit N` when running `sail_riscv_sim` manually. Trapping tests loop forever; the trace file gets deleted on failure. Keep inst-limit small (e.g. 500) to get a short readable trace before the trap loop.
+  - Example: `timeout 2s sail_riscv_sim --config sail.json --trace-instr --trace-exception --trace-output /tmp/trace.txt --inst-limit 500 test.elf`

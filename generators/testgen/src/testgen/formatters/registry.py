@@ -16,6 +16,7 @@ from typing import Literal
 
 from testgen.data.params import InstructionParams
 from testgen.data.state import TestData
+from testgen.data.testcase import TestCase
 from testgen.exceptions import MissingRegistryItemError
 
 # Type alias for instruction formatter functions
@@ -141,8 +142,14 @@ def format_instruction(
 
 
 def format_single_test(
-    instr_name: str, instr_type: str, test_data: TestData, params: InstructionParams, desc: str
-) -> str:
+    instr_name: str,
+    instr_type: str,
+    test_data: TestData,
+    params: InstructionParams,
+    desc: str,
+    bin_name: str,
+    coverpoint: str,
+) -> TestCase:
     """
     Generate a complete single-instruction test with setup and signature update.
 
@@ -158,14 +165,29 @@ def format_single_test(
         test_data: Test data context
         params: Instruction parameters
         desc: Test description (e.g., "cp_rd (Test destination rd = x5)")
-
+        bin_name: Coverpoint bin covered by this test case
+        coverpoint: Coverpoint name
     Returns:
-        Complete test case as a string
+        TestCase containing the complete test case
     """
+    tc = test_data.begin_testcase()
     test_lines = [f"# Testcase {desc}"]
+
+    # Register the testcase label first so SIGUPD references the current testcase
+    label_line = test_data.add_testcase(bin_name, coverpoint)
 
     # Add test and signature update lines
     setup, test, check = format_instruction(instr_name, instr_type, test_data, params)
-    test_lines.extend([setup, test, check])
+    if setup:
+        test_lines.append(setup)
+    test_lines.extend(
+        [
+            label_line,
+            test,
+        ]
+    )
+    if check:
+        test_lines.append(check)
 
-    return "\n".join(test_lines)
+    tc.code = "\n".join(test_lines)
+    return test_data.end_testcase()
