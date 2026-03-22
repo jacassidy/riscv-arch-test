@@ -42,12 +42,16 @@ def make(test, sew):
     if sew > common.xlen:
         return
 
-    qnan = QNAN.get(sew)
+    # For widening reductions (vfwredosum), vs1 is read at 2*SEW
+    is_widening = test.startswith("vfw")
+    vs1_sew = sew * 2 if is_widening else sew
+
+    qnan = QNAN.get(vs1_sew)
     if qnan is None:
         return
 
-    label = f"custom_redosum_qnan_sew{sew}"
-    registerCustomData(label, [qnan], element_size=sew)
+    label = f"custom_redosum_qnan_sew{vs1_sew}"
+    registerCustomData(label, [qnan], element_size=vs1_sew)
 
     # Test 1: Load qNaN into vs1=v8 with vl=1 (populates vector register)
     description = f"cp_custom_vfredosum_NAN_vl0 setup ({test}, vl=1, vs1[0]=qNaN)"

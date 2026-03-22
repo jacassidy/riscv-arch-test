@@ -1,16 +1,36 @@
 
         // Positive qNaN range: sign=0, exponent all 1s, mantissa MSB=1
         // SEW16: 0x7E00..0x7FFF, SEW32: 0x7FC00000..0x7FFFFFFF, SEW64: 0x7FF8000000000000..0x7FFFFFFFFFFFFFFF
-        vs1_0_qNAN : coverpoint get_vr_element_zero(ins.hart, ins.issue, ins.current.vs1_val) {
+        //
+        // For non-widening (vfredosum), vs1 is at SEW — get_vr_element_zero matches.
+        // For widening (vfwredosum), vs1 accumulator is at 2*SEW — get_vr_element_zero_widen matches.
+        // We check both; either matching satisfies the bin.
+        // Note: no widen check for VFCUSTOM64 (no SEW=128 exists).
+
+        vs1_0_qNAN : coverpoint
+                (get_vr_element_zero(ins.hart, ins.issue, ins.current.vs1_val) inside {
                 `ifdef COVER_VFCUSTOM16
-                bins posQNaN          = {[64'h0000_0000_0000_7E00:64'h0000_0000_0000_7FFF]};
+                        [64'h0000_0000_0000_7E00:64'h0000_0000_0000_7FFF]
                 `endif
                 `ifdef COVER_VFCUSTOM32
-                bins posQNaN          = {[64'h0000_0000_7FC0_0000:64'h0000_0000_7FFF_FFFF]};
+                        [64'h0000_0000_7FC0_0000:64'h0000_0000_7FFF_FFFF]
                 `endif
                 `ifdef COVER_VFCUSTOM64
-                bins posQNaN          = {[64'h7FF8_0000_0000_0000:64'h7FFF_FFFF_FFFF_FFFF]};
+                        [64'h7FF8_0000_0000_0000:64'h7FFF_FFFF_FFFF_FFFF]
                 `endif
+                })
+        `ifndef COVER_VFCUSTOM64
+                || (get_vr_element_zero_widen(ins.hart, ins.issue, ins.current.vs1_val) inside {
+                `ifdef COVER_VFCUSTOM16
+                        [64'h0000_0000_7FC0_0000:64'h0000_0000_7FFF_FFFF]
+                `endif
+                `ifdef COVER_VFCUSTOM32
+                        [64'h7FF8_0000_0000_0000:64'h7FFF_FFFF_FFFF_FFFF]
+                `endif
+                })
+        `endif
+        {
+                bins posQNaN = {1};
         }
 
         fp_flags_clear : coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "fcsr", "fflags") {

@@ -45,15 +45,15 @@
   },
   "cp_custom_vfp_state": {
     "status": "completed",
-    "coverage": "100% rv64; rv32 VfCustom16/32=100%, VfCustom64=0% (sd/fld needs zilsd on rv32)",
-    "fix": "Template simplified. sew>xlen guard correct for Vf (avoids zilsd compile error).",
-    "timestamp": "2026-02-25 18:50:00"
+    "coverage": "100%",
+    "fix": "Added ifdef COVER_VFCUSTOM64 + ifdef XLEN32 guard to template so covergroup is excluded for SEW64 on RV32 (sd/ld needs zilsd). Script sew>xlen guard remains for test generation.",
+    "timestamp": "2026-03-02 12:00:00"
   },
   "cp_custom_vfredosum_NAN_vl0": {
-    "status": "partial",
-    "coverage": "vfredosum.vs=100%; vfwredosum.vs=87.5% (template width mismatch for widened variant)",
-    "fix": "Two-test approach works for vfredosum. vfwredosum template uses get_vr_element_zero at SEW but vs1 is at 2*SEW.",
-    "timestamp": "2026-02-25 19:00:00"
+    "status": "completed",
+    "coverage": "100%",
+    "fix": "Added get_vr_element_zero_widen() to RISCV_coverage_vector.svh (extracts at 2*SEW). Template uses OR of both SEW and 2*SEW checks. Script loads qNaN at 2*SEW for vfwredosum. ifndef COVER_VFCUSTOM64 guards widen block (no SEW128).",
+    "timestamp": "2026-03-02 22:00:00"
   },
   "cp_custom_vfp_flags": {
     "status": "partial",
