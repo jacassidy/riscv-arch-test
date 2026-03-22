@@ -71,7 +71,7 @@ def add_testcase_string(cp: str, instr_name: str) -> None:
   global testcase_count, testcase_strings, extension
   testcase_count += 1
   testcase_strings.append(
-    f'test_{testcase_count}: .string "\\"test: {testcase_count}; cp: {extension}_{instr_name}_cg/{cp}\\""'
+    f'test_{testcase_count}_str: .string "\\"test: {testcase_count}; cp: {extension}_{instr_name}_cg/{cp}\\""'
   )
 
 def generate_testcase_string_section() -> str:
@@ -1269,7 +1269,8 @@ def writeSIGUPD(rd):
       linkInd = randint(0,2)
       linkReg = linkOptions[linkInd - 1]
     tempReg = linkReg - 1
-    writeLine(f"RVTEST_SIGUPD(x{sigReg}, x{linkReg}, x{tempReg}, x{rd}, {str_ptr})", f"# store x{rd} in signature")
+    writeLine(f"{str_ptr}:")
+    writeLine(f"RVTEST_SIGUPD(x{sigReg}, x{linkReg}, x{tempReg}, x{rd}, {str_ptr}, {str_ptr}_str)", f"# store x{rd} in signature")
 
 def writeSIGUPD_F(fd):
     global sigupd_count  # Allow modification of global variable
@@ -1285,7 +1286,8 @@ def writeSIGUPD_F(fd):
     tempReg = linkReg - 1
     ftempReg = tempReg
     writeLine(f"csrr x{tempReg}, fcsr", f"# save fcsr into x{tempReg} for signature")                                 # Get fcsr into a temp register
-    writeLine(f"RVTEST_SIGUPD_F(x{sigReg}, x{linkReg}, x{tempReg}, f{ftempReg}, f{fd}, {str_ptr})", f"# store f{fd} and x{tempReg} (fcsr) in signature")  # x{rd} as fstatus Xreg from macro definition as dummy store (might be needed in another instruction)
+    writeLine(f"{str_ptr}:")
+    writeLine(f"RVTEST_SIGUPD_F(x{sigReg}, x{linkReg}, x{tempReg}, f{ftempReg}, f{fd}, {str_ptr}, {str_ptr}_str)", f"# store f{fd} and x{tempReg} (fcsr) in signature")  # x{rd} as fstatus Xreg from macro definition as dummy store (might be needed in another instruction)
 
 def writeSIGUPD_V(vd, sew, avl=1, sig_lmul = None, load_testline = None, sig_whole_register_store = False):
     global sigupd_count        # Allow modification of global variable
