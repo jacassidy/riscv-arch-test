@@ -5,24 +5,31 @@
 This guide covers the end-to-end workflow for working on vector custom coverpoints:
 isolating a coverpoint → building/running coverage → reading results → fixing scripts/templates.
 
-Read `CLAUDE-custom-testgen.md` alongside this guide — it covers the custom script API in detail.
-Read `claude-scripts/knowledge.md` for known pitfalls and patterns discovered during development.
+### What to read and when
+
+| When | Read |
+|------|------|
+| Checking progress / planning next coverpoint | This file + `claude-scripts/progress.json` — nothing else |
+| Writing or debugging a test script | `CLAUDE-custom-testgen.md` + `claude-scripts/knowledge.md` |
+| Writing or debugging a coverage template | `generators/coverage/templates/GUIDE.md` + `claude-scripts/knowledge.md` |
+
+Do NOT read GUIDE.md, knowledge.md, or template files when the task is only to check progress or plan the next step.
 
 ---
 
 ## Directory Map
 
-| Path | Role |
-|------|------|
-| `generators/testgen/scripts/custom/` | Custom cp_*.py scripts + this guide + CLAUDE-custom-testgen.md |
-| `generators/testgen/scripts/custom/claude-scripts/` | Automation tools, progress tracking, knowledge base |
-| `generators/testgen/scripts/custom/claude-scripts/coverage_issues/` | Per-coverpoint `.md` files for blocked/unresolved coverage problems |
-| `working-testplans/` | CSV definitions, norm mappings, and helper scripts |
-| `working-testplans/duplicates/` | Canonical backups of CSVs (VfCustom-save.csv, VlsCustom-save.csv, etc.) |
-| `testplans/` | Live CSV testplans consumed by the framework (do NOT edit manually) |
-| `generators/coverage/templates/vector/` | `.sv` coverage templates (one per coverpoint) |
-| `work/sail-rv64-max/reports/` | Coverage report output for RV64 sail sim |
-| `work/sail-rv32-max/reports/` | Coverage report output for RV32 sail sim |
+| Path                                                                | Role                                                                    |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `generators/testgen/scripts/custom/`                                | Custom cp\_\*.py scripts + this guide + CLAUDE-custom-testgen.md        |
+| `generators/testgen/scripts/custom/claude-scripts/`                 | Automation tools, progress tracking, knowledge base                     |
+| `generators/testgen/scripts/custom/claude-scripts/coverage_issues/` | Per-coverpoint `.md` files for blocked/unresolved coverage problems     |
+| `working-testplans/`                                                | CSV definitions, norm mappings, and helper scripts                      |
+| `working-testplans/duplicates/`                                     | Canonical backups of CSVs (VfCustom-save.csv, VlsCustom-save.csv, etc.) |
+| `testplans/`                                                        | Live CSV testplans consumed by the framework (do NOT edit manually)     |
+| `generators/coverage/templates/vector/`                             | `.sv` coverage templates (one per coverpoint)                           |
+| `work/sail-rv64-max/reports/`                                       | Coverage report output for RV64 sail sim                                |
+| `work/sail-rv32-max/reports/`                                       | Coverage report output for RV32 sail sim                                |
 
 ---
 
@@ -41,6 +48,7 @@ python3 isolate_coverpoint.py --restore VfCustom
 ```
 
 `isolate_coverpoint.py` is at the repo root. It:
+
 1. Reads the canonical backup from `working-testplans/duplicates/<Category>-save.csv`
 2. Strips all rows that don't have `x` in the target column
 3. Strips all other `cp_custom_*` columns
@@ -70,10 +78,12 @@ make clean && make vector-tests && make coverage
 - `make coverage` — compiles and runs sail simulation, then generates reports
 
 **Timing**: ~15 min per test file with sail. Expect:
+
 - Small coverpoints (1–3 instructions): ~15–45 min
 - Large coverpoints (101 instructions like cp_custom_vfp_NaN_input): ~10 hours
 
 Reports land in:
+
 - `work/sail-rv64-max/reports/` — RV64 results
 - `work/sail-rv32-max/reports/` — RV32 results
 
@@ -108,6 +118,7 @@ Covergroup: VfCustom32_vfrsqrt7_v_cg
 ```
 
 Key things to look for:
+
 - **0% coverpoint**: Script probably not generating the right test data
 - **Partial bin coverage**: Script may need more edge values or both even/odd exponents
 - **Cross at 0%**: Each individual coverpoint may be 100%, but they never fire together in the same instruction execution — script needs to exercise conditions simultaneously
@@ -136,18 +147,21 @@ summary = summarize_coverage(results)
 ### What to fix
 
 After reading uncovered.txt, identify whether the issue is in:
+
 1. **The test generation script** (`cp_custom_*.py`) — wrong data, missing edge cases
 2. **The coverage template** (`generators/coverage/templates/vector/cp_custom_*.sv`) — wrong register field, wrong bin values, wrong CSR name
 
 ### Script fix pattern
 
 Read `CLAUDE-custom-testgen.md` for the API. Read `claude-scripts/knowledge.md` for common pitfalls. After fixing:
+
 - Re-run `make clean && make vector-tests && make coverage`
 - Compare new report to old report
 
 ### Template fix pattern
 
 Templates are `.sv` files in `generators/coverage/templates/vector/`. Common bugs:
+
 - `ins.current.vs1` should be `ins.current.vs2` for VVM unary ops (vfrsqrt7, vfrec7, vfsqrt, vfclass)
 - `get_vr_element_zero()` gets element 0 at OUTPUT SEW — for narrowing ops, use `ins.current.vs2_val[63:0]` directly
 - `get_csr_val(...)` with `"frm", "frm"` returns 0 — use `"fcsr", "frm"` instead
@@ -234,6 +248,7 @@ Valid statuses: `completed`, `in_progress`, `blocked`, `not_started`.
 **Whenever a new script, tool, directory, or workflow step is added that is part of the vector coverage pipeline, update this guide before finishing.**
 
 This applies to:
+
 - New automation scripts in `claude-scripts/` (add to the Automation Tools section)
 - New directory locations relevant to coverage (add to Directory Map)
 - New build commands or make targets (add to Step 2)
@@ -247,6 +262,7 @@ Do NOT add low-level script details or specific bin values here — those belong
 ## knowledge.md — MUST Update When You Learn Something New
 
 `claude-scripts/knowledge.md` is the persistent knowledge base for this project. It contains:
+
 - Common pitfalls (e.g., `vs1` vs `vs2` for unary ops, SEW > XLEN guard)
 - Known bug patterns (e.g., RVVI fsflagsi CSR alias, `vs2_val` vs `vs2_val_pointer`)
 - Per-coverpoint coverage outcomes and explanations

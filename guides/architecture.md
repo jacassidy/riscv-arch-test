@@ -1,7 +1,4 @@
-# CLAUDE-architecture.md
-# Project Architecture & Reference Guide
-
-Read this when you need project overview, directory structure, commands, config formats, or debugging procedures.
+# architecture.md — Project Architecture & Reference
 
 ## Project Overview
 
@@ -30,32 +27,7 @@ uv run act ...       # Run act framework
 uv run testgen ...   # Run test generator
 ```
 
-## High-Level Architecture
-
-### Core Layers
-
-1. **Configuration** (`config/duts/`, `config/ref/`)
-   - `test_config.yaml` — compiler paths, reference model, UDB location
-   - `*.yaml` (UDB config) — DUT extensions and parameter values
-   - `model_test.h` — Trickbox macros for I/O, interrupts
-   - `link.ld` — linker script; `sail.json` — Sail model config
-
-2. **Test Generation** (`generators/`, `testplans/`)
-   - `testgen` — generates tests from CSV testplans
-   - `coverage` — generates coverpoint definitions and coverage groups
-   - `testplans/*.csv` — instruction-to-coverpoint mappings
-
-3. **Framework** (`framework/src/act/`)
-   - `act.py` — main entry point
-   - `makefile_gen.py` — generates build Makefiles
-   - `select_tests.py` — filters tests based on UDB config
-   - `fcov/` — functional coverage infrastructure
-
-4. **Output** (`work/`, `work-ref/`)
-   - `tests/` — generated .S files; `build/` — .sig.elf, signatures
-   - `elfs/` — final self-checking ELFs; `coverage/` — coverage reports
-
-### CSV → ELF Pipeline
+## Core Pipeline: CSV → ELF
 
 1. CSV testplan maps instructions → coverpoints
 2. Coverpoint generators create assembly templates
@@ -63,12 +35,6 @@ uv run testgen ...   # Run test generator
 4. UDB config filters applicable tests
 5. Sail model runs tests, computes expected results
 6. Final self-checking ELFs embedded with expected values
-
-### Key Design Patterns
-
-- **Configuration-driven**: UDB selects tests; no spurious failures from unsupported features
-- **Signature-based**: Sail runs intermediate ELFs → expected signatures embedded in final ELF
-- **CSV-to-code mapping**: each (instruction row, coverpoint col) maps to a generator function
 
 ## Directory Structure
 
