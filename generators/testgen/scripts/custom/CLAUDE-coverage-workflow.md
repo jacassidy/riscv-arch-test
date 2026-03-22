@@ -74,8 +74,8 @@ make clean && make vector-tests && make coverage
 ```
 
 - `make clean` — removes ALL generated tests AND covergroup files. Must use this (not `make clean-tests`) because covergroups must also be regenerated.
-- `make vector-tests` — generates `.S` test files and covergroup `.sv` files
-- `make coverage` — compiles and runs sail simulation, then generates reports
+- `make vector-tests` — generates `.S` test files (`vector-testgen`) AND covergroup `.sv` files (`covergroupgen`). Run this, not `make vector-testgen` alone, unless you only want to regen test assembly.
+- `make coverage` — compiles ELFs and runs sail simulation, then generates reports. **Do NOT use `-j16` here when debugging** — sequential mode stops on first failure and makes errors easy to read.
 
 **Timing**: ~15 min per test file with sail. Expect:
 
@@ -91,54 +91,74 @@ Reports land in:
 
 ## Step 3: Reading Coverage Reports
 
+**Reading order**: `progress.json` → `_overall_summary.txt` (for high-level %) → targeted greps on `*_uncovered.txt`. Do NOT read report or uncovered files wholesale — they are thousands of lines.
+
 ### Report files
 
 ```
 work/sail-rv64-max/reports/
-  VfCustom16_report.txt        # Full coverage report, SEW=16
-  VfCustom32_report.txt        # Full coverage report, SEW=32
-  VfCustom64_report.txt        # Full coverage report, SEW=64
-  VfCustom16_uncovered.txt     # Only the uncovered bins (absent if 100%)
-  _overall_summary.txt         # Summary across all categories
+  VfCustom16_report.txt        # Full report — do not read directly
+  VfCustom32_report.txt        # Full report — do not read directly
+  VfCustom64_report.txt        # Full report — do not read directly
+  VfCustom16_uncovered.txt     # Uncovered bins only — use grep (see below)
+  _overall_summary.txt         # High-level % per covergroup — safe to read
+work/sail-rv32-max/reports/    # Same structure for RV32
 ```
 
 If `<Category><SEW>_uncovered.txt` is absent, that SEW achieved 100% coverage.
 
-### Reading uncovered.txt
+### coverage_summary.py — use this first, not grep or file reads
 
-The uncovered file shows covergroups, coverpoints, and specific bins that were not hit:
+`claude-scripts/coverage_summary.py` is the right tool for reading coverage state. Run from repo root.
 
+```bash
+# All instructions, compact table (SEW columns), sorted 0% first
+python3 generators/testgen/scripts/custom/claude-scripts/coverage_summary.py
+
+# Same but only show instructions not yet at 100%
+python3 generators/testgen/scripts/custom/claude-scripts/coverage_summary.py --uncovered
+
+# Which specific bins are ZERO for one instruction (across all SEWs and rv32/rv64)
+python3 generators/testgen/scripts/custom/claude-scripts/coverage_summary.py --bins vfadd.vv
 ```
-Covergroup: VfCustom32_vfrsqrt7_v_cg
-  Coverpoint: cp_custom_FpRecSqrtEst_edges
-    Bin: exp_odd_mant_0 (0 hits)
-    Bin: exp_even_mant_0 (0 hits)
-  Cross: cr_edges_x_flags
-    Bin: <exp_odd_mant_0, flags_NX> (0 hits)
+
+Output:
+- `!` prefix = instruction at 0% (no tests generated or all fail)
+- `???` = truncated line in report (line was too long for the reporter to print %)
+- `n/a` = that SEW doesn't exist for this category
+- `--bins` output groups missing bins by coverpoint name so you can see exactly what to fix
+
+**Use `--uncovered` for planning. Use `--bins <inst>` before editing a script.**
+
+### Reading uncovered.txt — use grep, not full reads
+
+The uncovered files are large. **Never read them wholesale.** Use targeted greps to extract what you need:
+
+```bash
+# 1. Which instructions are fully zero (no coverage at all)?
+grep -E "obj_VfCustom(16|32|64)_.*0\.00%" work/sail-rv64-max/reports/VfCustom16_uncovered.txt | grep "0\.00%" | head -30
+
+# 2. Which bins are missing for a specific coverpoint across all instructions?
+grep -A2 "cp_custom_vfp_flags_set" work/sail-rv64-max/reports/VfCustom16_uncovered.txt | grep "bin "
+
+# 3. Quick per-instruction summary (instruction name + overall %)
+grep -E "obj_VfCustom[0-9]+_" work/sail-rv64-max/reports/VfCustom16_uncovered.txt | grep -oP "obj_\S+\s+[\d.]+%"
+
+# 4. Which specific bins are ZERO across the whole file?
+grep "ZERO" work/sail-rv64-max/reports/VfCustom16_uncovered.txt | grep "bin " | sort -u
+
+# 5. Check the same for RV32:
+grep "ZERO" work/sail-rv32-max/reports/VfCustom16_uncovered.txt | grep "bin " | sort -u
 ```
 
 Key things to look for:
 
-- **0% coverpoint**: Script probably not generating the right test data
-- **Partial bin coverage**: Script may need more edge values or both even/odd exponents
-- **Cross at 0%**: Each individual coverpoint may be 100%, but they never fire together in the same instruction execution — script needs to exercise conditions simultaneously
-
-### Using coverage_parser.py
-
-```python
-from claude-scripts.coverage_parser import parse_uncovered, summarize_coverage
-
-# Parse reports for a specific coverpoint
-results = parse_uncovered(
-    "work/sail-rv64-max/reports",
-    "cp_custom_vfp_flags",
-    effew_list=["16", "32", "64"],
-    category="VfCustom"
-)
-
-# Get a human-readable summary
-summary = summarize_coverage(results)
-```
+- **`cp_asm_count` at 0%**: The instruction generated NO test cases — script returned early (sew > xlen guard, or instruction in NO_FLAG set)
+- **`std_vec` at 0%**: Same — no tests generated at all for this instruction
+- **Flag bins (NV/DZ/OF/UF/NX) at ZERO**: Script not generating inputs that trigger those flags for that instruction
+- **`X1` bins (NV1/DZ1/NX1 etc.) at ZERO**: Transition "stays set" bin — the framework clears fflags (via `fsflagsi`) before each test case, so `SAMPLE_AFTER[i]` reflects only what test i produced from a clean state. To cover `NX1` (NX stays 1→1), you need **two consecutive NX-setting tests**: `SAMPLE_AFTER[i]=NX`, `SAMPLE_AFTER[i+1]=NX` → transition `(????1 => ????1)` ✓. Single tests only cover the `0→1` bin, not the `1→1` stays-set bin.
+- **`mask_enabled`, `vfsqrt_flag_set`, `v0_element_1_active` all ZERO**: `cp_custom_vfp_flags_inactive_not_set` cross will be 0% — the masked test for that instruction hasn't run
+- **Cross at 0% but coverpoints non-zero**: Conditions never fire simultaneously — fix the script to exercise them together
 
 ---
 
@@ -166,6 +186,8 @@ Templates are `.sv` files in `generators/coverage/templates/vector/`. Common bug
 - `get_vr_element_zero()` gets element 0 at OUTPUT SEW — for narrowing ops, use `ins.current.vs2_val[63:0]` directly
 - `get_csr_val(...)` with `"frm", "frm"` returns 0 — use `"fcsr", "frm"` instead
 - Bin values in templates must match actual data generated by the script (verify in generated `.S` file)
+- **NEVER use `ins.current.insn == "some_mnemonic"` in a coverpoint.** `ins.current.insn` is the raw 32-bit instruction encoding, not a string. The comparison is always false. The framework already routes to the correct per-instruction covergroup — no identity check is needed. If you need to check the *previous* instruction, use `ins.prev.inst_name` (a string, as done in `cp_custom_sc.sv`).
+- `v0_element_1_active` coverpoints testing "inactive element" scenarios must use `bins target = {0}` (inactive = mask bit 0), not `{1}` (active).
 
 ### When coverage is unexpectedly 0% or stuck
 
@@ -179,6 +201,15 @@ Templates are `.sv` files in `generators/coverage/templates/vector/`. Common bug
 ## Automation Tools
 
 All tools are in `generators/testgen/scripts/custom/claude-scripts/`.
+
+### coverage_summary.py — Quick read of coverage state
+
+```bash
+python3 generators/testgen/scripts/custom/claude-scripts/coverage_summary.py --uncovered
+python3 generators/testgen/scripts/custom/claude-scripts/coverage_summary.py --bins <instruction>
+```
+
+Use this at the start of any session to see current state without reading raw report files.
 
 ### orchestrator.py — Fully automated multi-coverpoint loop
 

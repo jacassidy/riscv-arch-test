@@ -3,15 +3,13 @@
     //////////////////////////////////////////////////////////////////////////////////
 
     cp_csr_fflags_vdoun : coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_AFTER, "fcsr", "fflags") iff (ins.trap == 0 )  {
-        // Value of FCSR.fflags
+        // vfrsqrt7.v can raise NV (negative/NaN), DZ (zero input), NX (approx inexact).
+        // OF and UF are not achievable: for positive normal inputs the result is always
+        // within normal range, and for denormal inputs the result is a normal number.
         wildcard bins NV   = (5'b0???? => 5'b1????);
         wildcard bins NV1  = (5'b1???? => 5'b1????);
         wildcard bins DZ   = (5'b?0??? => 5'b?1???);
         wildcard bins DZ1  = (5'b?1??? => 5'b?1???);
-        wildcard bins OF   = (5'b??0?? => 5'b??1??);
-        wildcard bins OF1  = (5'b??1?? => 5'b??1??);
-        wildcard bins UF   = (5'b???0? => 5'b???1?);
-        wildcard bins UF1  = (5'b???1? => 5'b???1?);
         wildcard bins NX   = (5'b????0 => 5'b????1);
         wildcard bins NX1  = (5'b????1 => 5'b????1);
     }
@@ -24,7 +22,7 @@
         bins clear = {0};
     }
 
-    vfsqrt_flag_set : coverpoint (ins.current.insn == "vfrsqrt7.v" & ins.current.vs2_val == 0) {
+    vfsqrt_flag_set : coverpoint (ins.current.vs2_val == 0) {
         bins target = {1};
     }
 
@@ -34,7 +32,7 @@
     }
 
     v0_element_1_active : coverpoint (ins.current.v0_val[0]) {
-        bins target = {1};
+        bins target = {0};
     }
 
     cp_custom_vfp_flags_set : cross std_vec, cp_csr_fflags_vdoun;

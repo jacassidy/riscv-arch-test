@@ -56,10 +56,10 @@
     "timestamp": "2026-03-02 22:00:00"
   },
   "cp_custom_vfp_flags": {
-    "status": "partial",
-    "coverage": "30-68% per instruction. Many at 0% (vfclass/vfmerge/vmf*/vfsgnj/vfslide/vfreduce).",
-    "issue": "Needs more flag-transition input values per instruction. Script generates basic tests only.",
-    "timestamp": "2026-02-25 19:30:00"
+    "status": "in_progress",
+    "coverage": "30-68% per instruction. Many at 0% (vfclass/vfmerge/vmf*/vfsgnj/vfslide/vfreduce — these are in NO_FLAG_INSTRUCTIONS and won't be covered).",
+    "fix": "Two bugs fixed: (1) Template vfsqrt_flag_set was checking ins.current.insn=='vfrsqrt7.v' (always false — insn is 32-bit encoding, not string, and framework already routes per instruction). Fixed to just vs2_val==0. (2) v0_element_1_active bins target={1} was testing active element, but cross tests inactive — fixed to {0}. Script: added double-test pattern for all flag types (NX/NV/DZ/OF/UF) to cover stays-set transition bins (NX1/NV1/DZ1/OF1/UF1). Needs re-run to verify.",
+    "timestamp": "2026-03-22 00:00:00"
   },
   "cp_custom_vfp_NaN_input": {
     "status": "untested",

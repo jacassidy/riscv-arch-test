@@ -76,6 +76,23 @@ Available EMUL suffixed sets: `vfedgesemul1`, `vfedgesemul2` (lists of label str
 ### fflags / FP Flags
 The `fp_flags_clear` coverpoint in templates checks that `fflags == 0` BEFORE the instruction executes. This is typically the default state at test start. If your coverpoint crosses with `fp_flags_clear`, just make sure you don't set flags before the instruction under test — using clean edge values with `vl=1` usually satisfies this.
 
+### NX trigger values for approximation/sqrt instructions
+The default NX trigger `1.0 + 1ulp` works for arithmetic instructions (vfadd, vfmul, etc.) but can fail for lookup-table/sqrt instructions because the approximation for that specific input may happen to be exactly representable:
+
+- **vfrsqrt7.v**: Use **3.0** (`{16: 0x4200, 32: 0x40400000, 64: 0x4008000000000000}`) — 1/√3 is not exact in 7-bit approximation
+- **vfrec7.v**: Use **3.0** (same values) — 1/3 is not exactly representable
+- **vfsqrt.v**: Use **2.0** (`{16: 0x4000, 32: 0x40000000, 64: 0x4000000000000000}`) — √2 is irrational
+
+General rule: when an NX bin is ZERO for an approximation or sqrt instruction, the issue is almost always the trigger value, not the script structure. Try a different input value.
+
+### Transition bins (NV1/DZ1/NX1 etc.) require two consecutive flag-setting tests
+The framework inserts `fsflagsi 0b00000` before each test case, so each `SAMPLE_AFTER` value reflects only what that single test produced from a clean fflags state. Transition bins compare `SAMPLE_AFTER[i]` to `SAMPLE_AFTER[i+1]`.
+
+- **`NX = (5'b????0 => 5'b????1)`** — bit 0 was 0, now 1. Covered by a single NX-setting test after any clean state.
+- **`NX1 = (5'b????1 => 5'b????1)`** — bit 0 was 1, still 1. Requires **two consecutive NX-setting tests** so that sample[i]=NX and sample[i+1]=NX.
+
+**Pattern**: to cover both `FLAG` and `FLAG1` for any flag bit, generate the flag-triggering test **twice in a row**. Do this for each flag type (NX, NV, DZ, OF, UF) independently. Do NOT mix different flags to try to cover "stays set" — only a matching consecutive pair works.
+
 ## Registry of Patterns
 
 ### FP Flag Edge Tests (e.g. cp_custom_FpRecSqrtEst_flag_edges, cp_custom_FpRecipEst_flag_edges)
@@ -115,6 +132,14 @@ If you can't figure out a coverage issue after 2 attempts, stop. Write a concise
 
 ### Read the generated assembly when coverage is unexpected
 When coverage shows 0% or unexpected results, read the generated `.S` file (e.g. `tests/rv32i/VfCustom16/VfCustom16-vfrsqrt7.v.S`). For single-instruction coverpoints these files are short and will immediately reveal issues like wrong register fields, missing data, or incorrect instruction encodings.
+
+### Never check instruction identity inside a coverpoint — the framework already does this
+Each instruction has its OWN covergroup instance (e.g. `obj_VfCustom16_vfrsqrt7_v`). The framework only calls `sample()` for that covergroup when the matching instruction executes. **You never need to check `ins.current.insn == "someinstruction"` inside a coverpoint** — you already know which instruction is running.
+
+- **Wrong**: `coverpoint (ins.current.insn == "vfrsqrt7.v" & ins.current.vs2_val == 0)`
+- **Right**: `coverpoint (ins.current.vs2_val == 0)`
+
+`ins.current.insn` is the **raw 32-bit instruction word** (not a mnemonic string). Comparing it to a string literal like `"vfrsqrt7.v"` is a type mismatch and always evaluates false. If you genuinely needed the instruction name as a string (e.g. to check a *previous* instruction, as in `cp_custom_sc.sv`), use `ins.prev.inst_name` — but for the *current* instruction, this is never needed.
 
 ### `vs2_val` vs `vs2` in coverage templates
 Coverage templates that sample vector register DATA must use `ins.current.vs2_val` (or `vs1_val`, `vd_val`), NOT `ins.current.vs2`. The unsuffixed version is the register NAME (a string like "v16") — passing it to `get_vr_element_zero()` causes a "String assignment to packed type" warning and 0% coverage. The `_val` suffix gives the actual register CONTENTS (`VLEN_BITS` packed value). Reference: `coverpoints/general/RISCV_coverage_standard_coverpoints_vector.svh` uses `_val` everywhere.

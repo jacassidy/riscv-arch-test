@@ -40,14 +40,14 @@ def read_structure(csv_name: str) -> None:
         print(f"  {row[0]}")
 
 
-def read_full(csv_name: str) -> list[list[str]]:
+def read_full(csv_name: str):
     """Read and return the full CSV as a list of lists."""
     path = get_csv_path(csv_name)
     with path.open(newline="") as f:
         return list(csv.reader(f))
 
 
-def set_cells(csv_name: str, entries: list[tuple[str, str]], value: str = "x") -> None:
+def set_cells(csv_name: str, entries, value: str = "x") -> None:
     """Set specific cells in a CSV file.
 
     Args:
@@ -92,7 +92,7 @@ def set_cells(csv_name: str, entries: list[tuple[str, str]], value: str = "x") -
     print(f"Updated {changed}/{len(entries)} cells in {path.name}")
 
 
-def fill_column(csv_name: str, col_name: str, row_names: list[str] | None = None, value: str = "x") -> None:
+def fill_column(csv_name: str, col_name: str, row_names=None, value: str = "x") -> None:
     """Fill an entire column (or specific rows in that column) with a value.
 
     Args:
@@ -118,7 +118,7 @@ def fill_column(csv_name: str, col_name: str, row_names: list[str] | None = None
     set_cells(csv_name, entries, value)
 
 
-def fill_row(csv_name: str, row_name: str, col_names: list[str] | None = None, value: str = "x") -> None:
+def fill_row(csv_name: str, row_name: str, col_names=None, value: str = "x") -> None:
     """Fill an entire row (or specific columns in that row) with a value.
 
     Args:
@@ -139,7 +139,7 @@ def fill_row(csv_name: str, row_name: str, col_names: list[str] | None = None, v
     set_cells(csv_name, entries, value)
 
 
-def clear_cells(csv_name: str, entries: list[tuple[str, str]]) -> None:
+def clear_cells(csv_name: str, entries) -> None:
     """Clear specific cells (set to empty string).
 
     Args:
