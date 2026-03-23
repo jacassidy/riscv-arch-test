@@ -5,6 +5,7 @@
 **RISC-V Architectural Certification Tests (ACTs)** — generates self-checking assembly tests that certify RISC-V conformance. The ACT4 Framework uses Makefiles, Python, and config files to generate, compile, and manage tests for a configurable DUT.
 
 Framework generates tests from:
+
 1. **CSV-driven testplans** — instruction coverage and coverpoints
 2. **UDB configuration files** — DUT's supported extensions and parameters
 3. **DUT-specific macros** (Trickbox) — console output, test termination, interrupt control
@@ -56,6 +57,7 @@ riscv-arch-test/
 ## Configuration File Formats
 
 ### test_config.yaml
+
 ```yaml
 name: cvw-rv64gc
 compiler_exe: riscv64-unknown-elf-gcc
@@ -67,7 +69,8 @@ linker_script: link.ld
 dut_include_dir: .
 ```
 
-### UDB Config (*.yaml)
+### UDB Config (\*.yaml)
+
 ```yaml
 hart_isa: RV64IMAFDC
 extensions:
@@ -81,6 +84,7 @@ parameters:
 ```
 
 ### Testplan CSV Format
+
 ```csv
 Instruction,Type,RV32,RV64,cp_rs1,cp_rs2,cp_rd,cp_rs1_edges,...
 add,R,x,x,x,x,x,x,...
@@ -103,6 +107,7 @@ auipc,U,x,x,,,x,,20bit,...
 ### `RVTEST_SIGUPD` upstream API change (5 → 6 args)
 
 Upstream added a 6th argument `_STR_PTR` to `RVTEST_SIGUPD` and `RVTEST_SIGUPD_F`. Vector testgen was updated in `vector_testgen_common.py`:
+
 - `writeSIGUPD`: added `{str_ptr}_str` as 6th arg, and emits `{str_ptr}:` code label before the macro call
 - `writeSIGUPD_F`: same
 - `add_testcase_string`: data label renamed from `test_{N}:` to `test_{N}_str:`
@@ -114,30 +119,36 @@ If a future upstream pull breaks builds with "macro requires 6 arguments but onl
 ## Debugging
 
 ### Test Failures — Check in Order
+
 1. Configuration mismatch (UDB vs Sail not aligned)
 2. `objdump` file to understand what the test does
 3. Verify Sail model was configured to match
 4. Only then suspect a DUT bug
 
 ### UDB / Sail Must Match
+
 Mismatched extensions or parameters → wrong expected results or spurious failures. Not auto-validated.
 
 ### Test Output
+
 - Pass: `RVCP-SUMMARY: Test File "<name.S>": PASSED`
 - Fail: includes failing PC, instruction, register mismatch (expected vs actual)
 - Find instruction: `grep "PC_VALUE" work/<config>/objdump/<test>.elf.objdump`
 
 ### Adding a New Instruction
+
 1. Add row to `testplans/<extension>.csv`
 2. Add decoding entry to `framework/src/act/fcov/disassemble.svh`
 3. Ensure coverpoint generators exist
 4. Run `make tests`
 
 ## Python Environment
+
 - Tool: `uv`; Location: `.venv/`; Python 3.12+
 - Always invoke via `uv` to ensure correct environment
 
 ## Contributing
+
 1. Update `CHANGELOG.md` (Semantic Versioning)
 2. `make lint` must pass
 3. Add SPDX header to new files: `// SPDX-License-Identifier: BSD-3-Clause`

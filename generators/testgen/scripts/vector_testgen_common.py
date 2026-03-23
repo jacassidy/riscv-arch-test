@@ -1755,6 +1755,22 @@ def writeTest(description, instruction, instruction_data,
 
     scalar_registers_used = [rd, rs1, rs2]
 
+    # Precompute store-reload signature data before emitting any assembly lines.
+    # Some constrained store patterns can fail register allocation for the reload
+    # instruction (ValueError). If that happens, fail early so callers can skip
+    # this testcase cleanly without leaving unterminated preprocessor blocks.
+    precomputed_load = None
+    if instruction in vector_stores:
+      load_instruction = getLoadEquivilentInstruction(instruction, sew)
+      precomputed_load = randomizeVectorInstructionData(
+        load_instruction, sew, None, None, lmul=lmul,
+        additional_no_overlap=[['vs3_start', 'vd_start'], ['vd', 'v0']],
+        vs2_reg=vector_register_data['vs2']['reg'],
+        vs3_reg=vector_register_data['vs3']['reg'],
+        rs1_reg=scalar_register_data['rs1']['reg'],
+        rs2_reg=scalar_register_data['rs2']['reg']
+      )
+
     tempReg = 6
     while tempReg in scalar_registers_used:
       tempReg = randint(1,31)
@@ -1853,13 +1869,7 @@ def writeTest(description, instruction, instruction_data,
     load_testline = None
     if instruction in vector_stores: # for stores we reload the value saved to memory to check against signature
       load_instruction = getLoadEquivilentInstruction(instruction, sew)
-      load_instruction_data = randomizeVectorInstructionData(load_instruction, sew, None, None, lmul=lmul, additional_no_overlap=[['vs3_start', 'vd_start'], ['vd', 'v0']],
-                                                        vs2_reg = vector_register_data['vs2']['reg'],
-                                                        vs3_reg = vector_register_data['vs3']['reg'],
-                                                        rs1_reg = scalar_register_data['rs1']['reg'],
-                                                        rs2_reg = scalar_register_data['rs2']['reg'])
-
-      [load_vector_register_data, load_scalar_register_data, load_floating_point_register_data, load_imm_val] = load_instruction_data
+      [load_vector_register_data, load_scalar_register_data, load_floating_point_register_data, load_imm_val] = precomputed_load
       load_vd = load_vector_register_data['vd'] ['reg']
 
       load_testline = f"{load_instruction} v{load_vd}, (x{load_scalar_register_data['rs1']['reg']})"
