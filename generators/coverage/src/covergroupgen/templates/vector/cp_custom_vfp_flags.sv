@@ -3,15 +3,14 @@
     //////////////////////////////////////////////////////////////////////////////////
 
     cp_csr_fflags_vdoun : coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_AFTER, "fcsr", "fflags") iff (ins.trap == 0 )  {
-        // vfrsqrt7.v can raise NV (negative/NaN), DZ (zero input), NX (approx inexact).
-        // OF and UF are not achievable: for positive normal inputs the result is always
-        // within normal range, and for denormal inputs the result is a normal number.
+        // vfrsqrt7.v can raise NV (negative/NaN input) and DZ (zero input).
+        // NX is NOT raised: vfrsqrt7 is a defined 7-bit lookup-table approximation,
+        // not an IEEE operation, so the result is exact by definition.
+        // OF and UF are not achievable: result is always in normal range.
         wildcard bins NV   = (5'b0???? => 5'b1????);
         wildcard bins NV1  = (5'b1???? => 5'b1????);
         wildcard bins DZ   = (5'b?0??? => 5'b?1???);
         wildcard bins DZ1  = (5'b?1??? => 5'b?1???);
-        wildcard bins NX   = (5'b????0 => 5'b????1);
-        wildcard bins NX1  = (5'b????1 => 5'b????1);
     }
 
     mask_enabled: coverpoint ins.current.insn[25] {
@@ -22,7 +21,10 @@
         bins clear = {0};
     }
 
-    vfsqrt_flag_set : coverpoint (ins.current.vs2_val == 0) {
+    // Check element 0 of vs2 is zero. We check [15:0] which is the smallest
+    // FP SEW (16). For SEW32/64, zero means all bits are 0 including [15:0].
+    // For non-zero FP values, [15:0] is always nonzero (exponent/mantissa bits).
+    vfsqrt_flag_set : coverpoint (ins.current.vs2_val[15:0] == 0) {
         bins target = {1};
     }
 

@@ -88,6 +88,29 @@ addi,I,x,x,x,,x,x,...
 auipc,U,x,x,,,x,,20bit,...
 ```
 
+## Known Deviations from Upstream
+
+### `-DRVTEST_SELFCHECK` disabled in coverage builds
+
+`framework/src/act/build_plan.py` compiles the `final.elf` **without** `-DRVTEST_SELFCHECK` (the flag was removed). Without this, `RVTEST_SIGUPD` uses store-only mode (writes to signature, never fails). With it, it loads a pre-populated expected value from the signature and compares — which requires a `.sig.elf` reference run first.
+
+**Why removed**: Vector custom tests deliberately set fflags to non-zero (e.g., NV via sNaN). The coverage workflow runs the `final.elf` without first populating the signature via `.sig.elf`. This means the expected value is always 0 (uninitialised). Any test that produces a non-zero fcsr value triggers a canary mismatch, `sail` exits non-zero, and `make` stops.
+
+**Impact**: Coverage `final.elf` runs are unchecked (store-only). Correctness is verified separately via RVVI lock-step against spike.
+
+---
+
+### `RVTEST_SIGUPD` upstream API change (5 → 6 args)
+
+Upstream added a 6th argument `_STR_PTR` to `RVTEST_SIGUPD` and `RVTEST_SIGUPD_F`. Vector testgen was updated in `vector_testgen_common.py`:
+- `writeSIGUPD`: added `{str_ptr}_str` as 6th arg, and emits `{str_ptr}:` code label before the macro call
+- `writeSIGUPD_F`: same
+- `add_testcase_string`: data label renamed from `test_{N}:` to `test_{N}_str:`
+
+If a future upstream pull breaks builds with "macro requires 6 arguments but only 5 given", check these three locations.
+
+---
+
 ## Debugging
 
 ### Test Failures — Check in Order
