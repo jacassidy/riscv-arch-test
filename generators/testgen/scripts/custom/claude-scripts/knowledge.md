@@ -30,8 +30,13 @@ def make(test, sew):
 **Always use `make clean` (NOT `make clean-tests`)** before rebuilding. Covergroups also need to be regenerated between runs.
 
 ```bash
-make clean && make vector-tests && make coverage
+python3 isolate_coverpoint.py <Category> <cp_column_name>
+make clean && make vector-testgen
 ```
+
+- Default single-coverpoint debug flow: isolate first, then run `make vector-testgen`.
+- `make vector-testgen` should finish in under 30 seconds for one isolated coverpoint.
+- If it times out, isolation failed (extra active CSV columns/rows). Fix isolation first.
 
 ## API Tips
 

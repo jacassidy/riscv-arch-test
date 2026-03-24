@@ -10,7 +10,7 @@ isolating a coverpoint → building/running coverage → reading results → fix
 | When                                         | Read                                                                     |
 | -------------------------------------------- | ------------------------------------------------------------------------ |
 | Checking progress / planning next coverpoint | This file + `claude-scripts/progress.json` — nothing else                |
-| Writing or debugging a test script           | `CLAUDE-custom-testgen.md` + `claude-scripts/knowledge.md`               |
+| Writing or debugging a test script           | `GUIDE.md` + `claude-scripts/knowledge.md`                               |
 | Writing or debugging a coverage template     | `generators/coverage/templates/GUIDE.md` + `claude-scripts/knowledge.md` |
 
 Do NOT read GUIDE.md, knowledge.md, or template files when the task is only to check progress or plan the next step.
@@ -21,7 +21,7 @@ Do NOT read GUIDE.md, knowledge.md, or template files when the task is only to c
 
 | Path                                                                | Role                                                                    |
 | ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `generators/testgen/scripts/custom/`                                | Custom cp\_\*.py scripts + this guide + CLAUDE-custom-testgen.md        |
+| `generators/testgen/scripts/custom/`                                | Custom cp\_\*.py scripts + this guide + GUIDE.md                         |
 | `generators/testgen/scripts/custom/claude-scripts/`                 | Automation tools, progress tracking, knowledge base                     |
 | `generators/testgen/scripts/custom/claude-scripts/coverage_issues/` | Per-coverpoint `.md` files for blocked/unresolved coverage problems     |
 | `working-testplans/`                                                | CSV definitions, norm mappings, and helper scripts                      |
@@ -35,7 +35,7 @@ Do NOT read GUIDE.md, knowledge.md, or template files when the task is only to c
 
 ## Step 1: Isolation
 
-Before running coverage for a single coverpoint, isolate it so only that column is active.
+Before running any single-coverpoint build command, isolate it so only that column is active. This step is mandatory.
 
 ```bash
 # Isolate one column (strips all other cp_custom columns, removes unrelated rows)
@@ -53,9 +53,10 @@ python3 isolate_coverpoint.py --restore VfCustom
 2. Strips all rows that don't have `x` in the target column
 3. Strips all other `cp_custom_*` columns
 4. Writes the isolated CSV to `testplans/<Category>.csv`
-5. Updates `Makefile` EXTENSIONS line to only the relevant SEW categories
+5. Deletes all other vector testplans so only the requested isolated vector CSV remains active
+6. Updates `Makefile` EXTENSIONS line to only the relevant SEW categories
 
-**Always restore** (`--restore`) before isolating a different coverpoint, or the live CSV stays in its stripped state.
+**Always restore** (`--restore`) before isolating a different coverpoint, or the live CSV stays in its stripped state and unrelated vector testplans stay deleted.
 
 ### Manual Makefile EXTENSIONS
 
@@ -70,12 +71,23 @@ If `isolate_coverpoint.py` doesn't update the Makefile automatically, set EXTENS
 ## Step 2: Build and Run Coverage
 
 ```bash
-make clean && make vector-tests && make coverage
+make clean && make vector-testgen
 ```
 
 - `make clean` — removes ALL generated tests AND covergroup files. Must use this (not `make clean-tests`) because covergroups must also be regenerated.
-- `make vector-tests` — generates `.S` test files (`vector-testgen`) AND covergroup `.sv` files (`covergroupgen`). Run this, not `make vector-testgen` alone, unless you only want to regen test assembly.
+- `make vector-testgen` — default for isolated single-coverpoint debugging. It regenerates test assembly only.
+- Single-coverpoint expectation: `make vector-testgen` should finish in under 30 seconds.
+- If `make vector-testgen` times out for one coverpoint, treat it as an isolation/setup bug: a CSV column was not isolated (extra active `cp_custom_*` columns or rows). Re-run `isolate_coverpoint.py` and verify isolation before doing anything else.
+- Do NOT use `make vector-tests` for first-pass issue isolation. It regenerates covergroups too and makes root cause harder to spot.
+
+After `make vector-testgen` succeeds, run coverage:
+
+```bash
+timeout 120s make coverage
+```
+
 - `make coverage` — compiles ELFs and runs sail simulation, then generates reports. **Do NOT use `-j16` here when debugging** — sequential mode stops on first failure and makes errors easy to read.
+- Always run with `timeout 120s` during debugging so trap loops fail fast without being overly aggressive. The terminal output shows the last test being executed (e.g. where `vloxei64` gets stuck).
 
 **Timing**: ~15 min per test file with sail. Expect:
 
@@ -174,9 +186,10 @@ After reading uncovered.txt, identify whether the issue is in:
 
 ### Script fix pattern
 
-Read `CLAUDE-custom-testgen.md` for the API. Read `claude-scripts/knowledge.md` for common pitfalls. After fixing:
+Read `GUIDE.md` for the API. Read `claude-scripts/knowledge.md` for common pitfalls. After fixing:
 
-- Re-run `make clean && make vector-tests && make coverage`
+- Re-run `make clean && make vector-testgen && make coverage` for isolated single-coverpoint loops
+- Use `make clean && make vector-tests && make coverage` only when covergroup regeneration is required (template updates)
 - Compare new report to old report
 
 ### Template fix pattern
@@ -342,17 +355,22 @@ When `writeTest(vl=0)` is used, VL=0 is set **before** vector register loads (`v
 # 1. Isolate
 python3 isolate_coverpoint.py VfCustom cp_custom_vfp_flags
 
-# 2. Build and run coverage
-make clean && make vector-tests && make coverage
+# 2. Build tests for one isolated coverpoint
+make clean && make vector-testgen
 
-# 3. Read results
-cat work/sail-rv64-max/reports/VfCustom16_uncovered.txt
-cat work/sail-rv32-max/reports/VfCustom16_uncovered.txt
+# If this takes >30s or times out, the CSV was not isolated correctly.
+# Re-run isolate_coverpoint.py and verify only one cp_custom column is active.
 
-# 4. Fix script or template, then repeat steps 2-3
+# 3. Run coverage
+make coverage
 
-# 5. Restore CSV when done
+# 4. Read results
+python3 generators/testgen/scripts/custom/claude-scripts/coverage_summary.py --uncovered
+
+# 5. Fix script or template, then repeat steps 2-4
+
+# 6. Restore CSV when done
 python3 isolate_coverpoint.py --restore VfCustom
 
-# 6. Update knowledge.md with anything new learned
+# 7. Update knowledge.md with anything new learned
 ```

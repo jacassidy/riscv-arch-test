@@ -3,16 +3,18 @@
 """Run coverage for a single coverpoint column in isolation.
 
 Usage:
-    python3 run_coverage.py <coverpoint_name> [category]
+    python3 run_coverage.py <coverpoint_name> [category] [timeout_minutes]
 
 Example:
     python3 run_coverage.py cp_custom_vfp_flags Vf
+    python3 run_coverage.py cp_custom_vfp_flags Vf 2
     python3 run_coverage.py cp_custom_masked_v0_operand Vls
 """
 
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import time
@@ -27,7 +29,10 @@ from testplan_manager import isolate_column, restore_testplans
 from coverage_parser import summarize_coverage
 
 
-def run_coverage(coverpoint_name: str, category: str = "Vf", timeout_minutes: int = 60) -> dict:
+DEFAULT_COVERAGE_TIMEOUT_MINUTES = 2
+
+
+def run_coverage(coverpoint_name: str, category: str = "Vf", timeout_minutes: int = DEFAULT_COVERAGE_TIMEOUT_MINUTES) -> dict:
     """Isolate one column, build, run coverage, restore CSVs.
 
     Returns dict with keys: status, coverage_summary, build_log, coverage_log, duration_s
@@ -71,15 +76,27 @@ def run_coverage(coverpoint_name: str, category: str = "Vf", timeout_minutes: in
             return result
         result["build_log"] = proc.stdout[-2000:]
 
-        # 4. Run coverage (make --jobs -k coverage)
-        print("[4/4] Running coverage (make --jobs -k coverage)...")
-        proc = subprocess.run(
-            ["make", "--jobs=16", "-k", "coverage"],
-            cwd=str(REPO), capture_output=True, text=True,
-            timeout=timeout_minutes * 60
-        )
+        # 4. Run coverage (timeout defaults to 1 minute to avoid trap hangs)
+        print(f"[4/4] Running coverage (timeout {timeout_minutes} min)...")
+        timeout_cmd = shutil.which("timeout")
+        coverage_cmd = ["make", "--jobs=16", "-k", "coverage"]
+        if timeout_cmd:
+            cmd = [timeout_cmd, f"{timeout_minutes}m", *coverage_cmd]
+            proc = subprocess.run(
+                cmd,
+                cwd=str(REPO), capture_output=True, text=True,
+            )
+        else:
+            proc = subprocess.run(
+                coverage_cmd,
+                cwd=str(REPO), capture_output=True, text=True,
+                timeout=timeout_minutes * 60
+            )
         result["coverage_log"] = proc.stdout[-5000:] + "\n---STDERR---\n" + proc.stderr[-3000:]
-        if proc.returncode != 0:
+        if proc.returncode == 124:
+            result["status"] = "timeout"
+            result["coverage_log"] += "\n[timeout] Coverage command exceeded configured timeout."
+        elif proc.returncode != 0:
             result["status"] = "coverage_partial"
         else:
             result["status"] = "ok"
@@ -90,10 +107,13 @@ def run_coverage(coverpoint_name: str, category: str = "Vf", timeout_minutes: in
             work_dir = REPO / "work" / xlen_dir
             if work_dir.exists() and not summary_file.exists():
                 print(f"  Forcing coverage reports for {xlen_dir}...")
+                force_cmd = ["make", "--jobs=16", "-k", "-i", "coverage"]
+                if timeout_cmd:
+                    force_cmd = [timeout_cmd, f"{timeout_minutes}m", *force_cmd]
                 subprocess.run(
-                    ["make", "--jobs=16", "-k", "-i", "coverage"],
+                    force_cmd,
                     cwd=str(work_dir), capture_output=True, text=True,
-                    timeout=timeout_minutes * 60
+                    timeout=None if timeout_cmd else timeout_minutes * 60
                 )
 
         # 5. Parse reports
@@ -153,8 +173,9 @@ if __name__ == "__main__":
 
     cp_name = sys.argv[1]
     cat = sys.argv[2] if len(sys.argv) > 2 else "Vf"
+    timeout_mins = int(sys.argv[3]) if len(sys.argv) > 3 else DEFAULT_COVERAGE_TIMEOUT_MINUTES
 
-    result = run_coverage(cp_name, cat)
+    result = run_coverage(cp_name, cat, timeout_minutes=timeout_mins)
     print_result(result)
 
     # Save result to JSON

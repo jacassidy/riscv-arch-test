@@ -35,6 +35,74 @@ def get_backup_path(csv_name: str) -> Path:
     return backup
 
 
+def _read_header(path: Path) -> list[str]:
+    """Read CSV header row."""
+    try:
+        with path.open(newline="") as f:
+            reader = csv.reader(f)
+            return next(reader, [])
+    except OSError:
+        return []
+
+
+def _is_vector_csv(name: str, header: list[str]) -> bool:
+    """Heuristic to identify vector testplan CSVs.
+
+    Future-proofing: treat any V* CSV as vector, and also detect by known
+    vector-specific columns in case naming changes.
+    """
+    stem = name.removesuffix(".csv")
+    if stem.startswith("V"):
+        return True
+
+    header_set = set(header)
+    if "std_vec" in header_set:
+        return True
+    if any(col.startswith("EFFEW") for col in header):
+        return True
+
+    return False
+
+
+def _vector_csv_names_from_backups() -> list[str]:
+    """Return vector CSV names (e.g. VfCustom.csv) based on duplicates backups."""
+    names = []
+    for save_file in DUPLICATES.glob("*-save.csv"):
+        original_name = save_file.name.replace("-save", "")
+        header = _read_header(save_file)
+        if _is_vector_csv(original_name, header):
+            names.append(original_name)
+    return sorted(set(names))
+
+
+def _restore_from_backup(csv_filename: str) -> bool:
+    """Restore one CSV from duplicates if a backup exists."""
+    backup = get_backup_path(csv_filename)
+    if not backup.exists():
+        return False
+
+    live = TESTPLANS / csv_filename
+    shutil.copy2(backup, live)
+    return True
+
+
+def _delete_other_vector_testplans(selected_csv_name: str) -> None:
+    """Delete all vector testplans except the selected one."""
+    vector_csvs = _vector_csv_names_from_backups()
+    selected = selected_csv_name if selected_csv_name.endswith(".csv") else f"{selected_csv_name}.csv"
+    removed = []
+    for filename in vector_csvs:
+        if filename == selected:
+            continue
+        path = TESTPLANS / filename
+        if path.exists():
+            path.unlink()
+            removed.append(filename)
+
+    if removed:
+        print(f"  Removed unrelated vector testplans: {', '.join(removed)}")
+
+
 def restore(csv_name: str) -> None:
     """Restore a CSV from its canonical backup."""
     name = csv_name if csv_name.endswith(".csv") else f"{csv_name}.csv"
@@ -47,6 +115,22 @@ def restore(csv_name: str) -> None:
 
     shutil.copy2(backup, live)
     print(f"Restored {live.name} from {backup}")
+
+    restored = []
+    missing = []
+    selected = name
+    for filename in _vector_csv_names_from_backups():
+        if filename == selected:
+            continue
+        if _restore_from_backup(filename):
+            restored.append(filename)
+        else:
+            missing.append(filename)
+
+    if restored:
+        print(f"  Restored other vector testplans: {', '.join(restored)}")
+    if missing:
+        print(f"  No backups found for: {', '.join(missing)}")
 
 
 def isolate(csv_name: str, coverpoint: str) -> None:
@@ -106,6 +190,8 @@ def isolate(csv_name: str, coverpoint: str) -> None:
     print(f"Isolated '{coverpoint}' in {name}:")
     print(f"  Columns: {len(headers)} -> {len(new_headers)} ({removed_cols} cp_custom columns removed)")
     print(f"  Rows: {kept} kept, {removed} removed (no '{coverpoint}' marking)")
+
+    _delete_other_vector_testplans(name)
 
 
 def main():

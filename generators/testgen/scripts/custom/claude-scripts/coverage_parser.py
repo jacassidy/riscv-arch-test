@@ -26,19 +26,16 @@ def parse_uncovered(report_dir: str, coverpoint_name: str, effew_list: list[str]
 
     results: dict = {}
     for effew in effew_list:
-        report_file = Path(report_dir) / f"{category}{effew}_uncovered.txt"
-        if not report_file.exists():
-            # No uncovered file could mean 100% covered or no tests run.
-            # Check if the _report.txt exists to distinguish.
-            report_txt = Path(report_dir) / f"{category}{effew}_report.txt"
-            if report_txt.exists():
-                # Report exists but no uncovered file → 100% covered
-                results[effew] = {}
-            else:
-                results[effew] = {"_error": f"No report files found for {category}{effew}"}
-            continue
+        uncovered_file = Path(report_dir) / f"{category}{effew}_uncovered.txt"
+        report_file = Path(report_dir) / f"{category}{effew}_report.txt"
 
-        results[effew] = _parse_report_file(report_file, coverpoint_name)
+        if uncovered_file.exists():
+            results[effew] = _parse_report_file(uncovered_file, coverpoint_name)
+        elif report_file.exists():
+            # If uncovered.txt is absent, parse the full report to preserve bin totals.
+            results[effew] = _parse_report_file(report_file, coverpoint_name)
+        else:
+            results[effew] = {"_error": f"No report files found for {category}{effew}"}
 
     return results
 
@@ -73,12 +70,19 @@ def _parse_report_file(report_file: Path, coverpoint_name: str) -> dict:
 
 
 def _extract_coverpoint_info(block: str, coverpoint_name: str) -> dict | None:
-    """Extract coverage info for a specific coverpoint from a covergroup block."""
+    """Extract coverage info for a specific coverpoint from a covergroup block.
+
+    Matching behavior:
+    - Exact: cp_custom_foo matches cp_custom_foo
+    - Grouped: cp_custom_foo also matches cp_custom_foo_* entries
+    """
     info: dict = {}
 
-    # Match both "Coverpoint {name}" and "Cross {name}" lines
+    # Match both "Coverpoint {name}" and "Cross {name}" lines.
+    # Keep exact matching and add grouped prefix matching for parent custom columns.
+    exact_or_grouped = rf"{re.escape(coverpoint_name)}(?:_[A-Za-z0-9_]+)?"
     pattern = re.compile(
-        rf"\s+(?:Coverpoint|Cross)\s+{re.escape(coverpoint_name)}\s+(\d+\.\d+)%\s+(\d+)\s+-\s+(\w+)",
+        rf"\s+(?:Coverpoint|Cross)\s+({exact_or_grouped})\s+(\d+\.\d+)%\s+(\d+)\s+-\s+(\w+)",
     )
 
     lines = block.split("\n")
@@ -86,9 +90,10 @@ def _extract_coverpoint_info(block: str, coverpoint_name: str) -> dict | None:
     while i < len(lines):
         match = pattern.match(lines[i])
         if match:
-            pct = float(match.group(1))
-            goal = int(match.group(2))
-            status = match.group(3)
+            matched_name = match.group(1)
+            pct = float(match.group(2))
+            goal = int(match.group(3))
+            status = match.group(4)
 
             # Read the covered/missing/% lines that follow
             covered = 0
@@ -103,14 +108,13 @@ def _extract_coverpoint_info(block: str, coverpoint_name: str) -> dict | None:
                 if miss_match:
                     missing = int(miss_match.group(1))
 
-            info[coverpoint_name] = {
+            info[matched_name] = {
                 "hit": covered,
                 "total": total,
                 "missing": missing,
                 "pct": pct,
                 "status": status,
             }
-            break
         i += 1
 
     return info if info else None

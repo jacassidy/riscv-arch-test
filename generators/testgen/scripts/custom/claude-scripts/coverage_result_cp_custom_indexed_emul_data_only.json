@@ -1,5 +1,5 @@
 {
-  "coverpoint": "cp_custom_masked_v0_operand",
+  "coverpoint": "cp_custom_indexed_emul_data_only",
   "category": "Vls",
   "status": "timeout",
   "coverage_summary": {
@@ -9,7 +9,6 @@
       "uncovered_bins": 0,
       "uncovered_list": [
         "EFFEW8: No report files found for VlsCustom8",
-        "EFFEW16: No report files found for VlsCustom16",
         "EFFEW32: No report files found for VlsCustom32",
         "EFFEW64: No report files found for VlsCustom64"
       ],
@@ -19,16 +18,11 @@
       "total_bins": 0,
       "covered_bins": 0,
       "uncovered_bins": 0,
-      "uncovered_list": [
-        "EFFEW8: No report files found for VlsCustom8",
-        "EFFEW16: No report files found for VlsCustom16",
-        "EFFEW32: No report files found for VlsCustom32",
-        "EFFEW64: No report files found for VlsCustom64"
-      ],
+      "uncovered_list": [],
       "fully_covered": false
     }
   },
   "build_log": "/opt/riscv/bin/uv run generators/testgen/scripts/vector-testgen-unpriv.py\nGenerating covergroups... \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 100% 0:00:00\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv32i/VlsCustom8\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv32i/VlsCustom16\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv32i/VlsCustom32\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv32i/VlsCustom64\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv64i/VlsCustom8\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv64i/VlsCustom16\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv64i/VlsCustom32\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv64i/VlsCustom64\ntouch work/stamps/vector-testgen-unpriv.stamp\n",
   "coverage_log": "Extension VlsCustom8 not found in unpriv testplans at testplans or priv test generators. This is normal for handwritten tests.\nExtension VlsCustom16 not found in unpriv testplans at testplans or priv test generators. This is normal for handwritten tests.\nExtension VlsCustom32 not found in unpriv testplans at testplans or priv test generators. This is normal for handwritten tests.\nExtension VlsCustom64 not found in unpriv testplans at testplans or priv test generators. This is normal for handwritten tests.\nGenerating tests... \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501   0% -:--:--\n\n---STDERR---\nmake: *** [Makefile:103: elfs] Error 143\n\n[timeout] Coverage command exceeded configured timeout.",
-  "duration_s": 70.9
+  "duration_s": 63.5
 }

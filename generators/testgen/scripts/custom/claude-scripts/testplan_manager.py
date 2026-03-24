@@ -30,7 +30,6 @@ CATEGORY_CONFIG = {
         "base_save": "Vf-save.csv",
         "effew_prefix": "VfCustom",
         "effews": ["16", "32", "64"],
-        "unrelated": ["Vls.csv", "VlsCustom.csv", "Vx.csv", "Vf.csv"],
     },
     "Vls": {
         "custom_csv": "VlsCustom",
@@ -39,7 +38,6 @@ CATEGORY_CONFIG = {
         "base_save": "Vls-save.csv",
         "effew_prefix": "VlsCustom",
         "effews": ["8", "16", "32", "64"],
-        "unrelated": ["Vf.csv", "VfCustom.csv", "Vx.csv", "Vls.csv"],
     },
 }
 
@@ -79,6 +77,57 @@ def _resolve_column_name(coverpoint_name: str, header: list[str]) -> str:
             return candidate
 
     return coverpoint_name  # fall through to error handling
+
+
+def _read_header(path: Path) -> list[str]:
+    """Read CSV header row."""
+    try:
+        with open(path, newline="") as f:
+            reader = csv.reader(f)
+            return next(reader, [])
+    except OSError:
+        return []
+
+
+def _is_vector_csv(name: str, header: list[str]) -> bool:
+    """Heuristic to identify vector testplan CSVs.
+
+    Future-proofing: treat any V* CSV as vector, and also detect by known
+    vector-specific columns in case naming changes.
+    """
+    stem = name.removesuffix(".csv")
+    if stem.startswith("V"):
+        return True
+
+    header_set = set(header)
+    if "std_vec" in header_set:
+        return True
+    if any(col.startswith("EFFEW") for col in header):
+        return True
+
+    return False
+
+
+def _vector_csv_names_from_backups() -> list[str]:
+    """Return vector CSV names (e.g. VfCustom.csv) based on duplicates backups."""
+    names = []
+    for save_file in DUPLICATES_DIR.glob("*-save.csv"):
+        original_name = save_file.name.replace("-save", "")
+        header = _read_header(save_file)
+        if _is_vector_csv(original_name, header):
+            names.append(original_name)
+    return sorted(set(names))
+
+
+def _disable_other_vector_testplans(selected_csv_name: str) -> None:
+    """Delete all vector testplans except the selected one."""
+    selected = selected_csv_name if selected_csv_name.endswith(".csv") else f"{selected_csv_name}.csv"
+    for csv_name in _vector_csv_names_from_backups():
+        if csv_name == selected:
+            continue
+        path = TESTPLANS_DIR / csv_name
+        if path.exists():
+            path.unlink()
 
 
 def isolate_column(coverpoint_name: str, category: str = "Vf") -> None:
@@ -122,18 +171,10 @@ def isolate_column(coverpoint_name: str, category: str = "Vf") -> None:
     output_csv = TESTPLANS_DIR / f"{config['custom_csv']}.csv"
     _write_csv(output_csv, stripped_header, stripped_rows)
 
-    # 5. Delete base CSV (not needed for isolated custom coverpoint testing)
-    base_dest = TESTPLANS_DIR / f"{config['base_csv']}.csv"
-    if base_dest.exists():
-        base_dest.unlink()
+    # 5. Disable all other vector testplans to avoid generating extra vector tests.
+    _disable_other_vector_testplans(f"{config['custom_csv']}.csv")
 
-    # 6. Delete unrelated testplan CSVs
-    for unrelated in config["unrelated"]:
-        unrelated_path = TESTPLANS_DIR / unrelated
-        if unrelated_path.exists():
-            unrelated_path.unlink()
-
-    # 7. Update EXTENSIONS in Makefile
+    # 6. Update EXTENSIONS in Makefile
     extensions = ",".join(f"{config['effew_prefix']}{e}" for e in config["effews"])
     _update_makefile_extensions(extensions)
 

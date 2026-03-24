@@ -178,9 +178,6 @@ def _gen_test_two_operands(test, sew, label1, val1, label2, val2, description):
 
 @register("cp_custom_vfp_flags")
 def make(test, sew):
-    if sew > common.xlen:
-        return
-
     if test not in vfloattypes:
         return
 

@@ -4,21 +4,21 @@
   "status": "ok",
   "coverage_summary": {
     "rv32": {
-      "total_bins": 0,
-      "covered_bins": 0,
+      "total_bins": 15,
+      "covered_bins": 15,
       "uncovered_bins": 0,
       "uncovered_list": [],
-      "fully_covered": false
+      "fully_covered": true
     },
     "rv64": {
-      "total_bins": 0,
-      "covered_bins": 0,
+      "total_bins": 15,
+      "covered_bins": 15,
       "uncovered_bins": 0,
       "uncovered_list": [],
-      "fully_covered": false
+      "fully_covered": true
     }
   },
   "build_log": "/opt/riscv/bin/uv run generators/testgen/scripts/vector-testgen-unpriv.py\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv32i/VfCustom16\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv32i/VfCustom32\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv32i/VfCustom64\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv64i/VfCustom16\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv64i/VfCustom32\nGenerating tests for /home/jacassidy/cvw/addins/riscv-arch-test-cvw/tests/rv64i/VfCustom64\ntouch work/stamps/vector-testgen-unpriv.stamp\nGenerating covergroups... \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 100% 0:00:00\n",
   "coverage_log": "Extension VfCustom16 not found in unpriv testplans at testplans or priv test generators. This is normal for handwritten tests.\nExtension VfCustom32 not found in unpriv testplans at testplans or priv test generators. This is normal for handwritten tests.\nExtension VfCustom64 not found in unpriv testplans at testplans or priv test generators. This is normal for handwritten tests.\nGenerating tests... \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501   0% -:--:--\n  Building... \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 62/62 100% elapsed: 0:00:01\nBuild complete: 62 succeeded\n\n---STDERR---\n",
-  "duration_s": 1.9
+  "duration_s": 2.0
 }
