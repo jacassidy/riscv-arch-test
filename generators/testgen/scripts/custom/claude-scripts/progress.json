@@ -1,119 +1,64 @@
 {
-  "cp_custom_vfncvt_rup_overflow": {
-    "status": "completed",
-    "coverage": "100%",
-    "timestamp": "2026-02-24 21:21:06"
+  "VfCustom": {
+    "cp_custom_vfp_flags": {
+      "status": "completed",
+      "coverage": "100%",
+      "fix": "Removed sew>xlen early return in cp_custom_vfp_flags.py so RV32 SEW64 tests are generated.",
+      "timestamp": "2026-03-22 18:02:49"
+    },
+    "cp_custom_vfp_flags_nv": {
+      "status": "completed",
+      "coverage": "100%",
+      "fix": "Fixed sd->sw bug in vector_testgen_common.py for RV32 SEW64 FP scalar loads.",
+      "timestamp": "2026-03-24 12:00:00"
+    },
+    "cp_custom_vfp_flags_nv_nx": {
+      "status": "untested"
+    },
+    "cp_custom_vfp_flags_nv_nx_dz": {
+      "status": "untested"
+    },
+    "cp_custom_vfp_flags_nv_nx_of": {
+      "status": "untested"
+    },
+    "cp_custom_vfp_flags_nv_nx_of_uf": {
+      "status": "untested"
+    },
+    "cp_custom_vfp_flags_nx": {
+      "status": "untested"
+    },
+    "cp_custom_vfp_flags_nv_dz": {
+      "status": "untested"
+    }
   },
-  "cp_custom_FpRecSqrtEst_edges": {
-    "status": "completed",
-    "coverage": "100%",
-    "fix": "Script used even exponent only (bit10=0). Fixed to use both even/odd exponents.",
-    "timestamp": "2026-02-25 04:25:00"
-  },
-  "cp_custom_FpRecipEst_edges": {
-    "status": "completed",
-    "coverage": "100%",
-    "timestamp": "2026-02-25 04:27:00"
-  },
-  "cp_custom_vfclass_onehot": {
-    "status": "completed",
-    "coverage": "100%",
-    "timestamp": "2026-02-25 04:28:00"
-  },
-  "cp_custom_vfncvt_rod_overflow": {
-    "status": "completed",
-    "coverage": "100% (SEW32)",
-    "fix": "Template used get_vr_element_zero() which extracts at output SEW. Fixed to use ins.current.vs2_val[63:0].",
-    "timestamp": "2026-02-25 04:29:00"
-  },
-  "cp_custom_vfredosum_ordered_sum": {
-    "status": "completed",
-    "coverage": "100%",
-    "timestamp": "2026-02-25 04:30:00"
-  },
-  "cp_custom_FpRecSqrtEst_flag_edges": {
-    "status": "completed",
-    "coverage": "100%",
-    "fix": "RVVI fsflagsi alias bug: fsflagsi writes CSR 001 but not CSR 003. Added spacer tests (vfrsqrt7(+inf)) after flag-setting tests to clear stale fcsr.",
-    "timestamp": "2026-02-25 06:30:00"
-  },
-  "cp_custom_FpRecipEst_flag_edges": {
-    "status": "completed",
-    "coverage": "100%",
-    "fix": "Same RVVI alias bug. Added spacer tests (vfrec7(-inf)) after flag-setting tests to clear stale fcsr.",
-    "timestamp": "2026-02-25 06:23:00"
-  },
-  "cp_custom_vfp_state": {
-    "status": "completed",
-    "coverage": "100%",
-    "fix": "Added ifdef COVER_VFCUSTOM64 + ifdef XLEN32 guard to template so covergroup is excluded for SEW64 on RV32 (sd/ld needs zilsd). Script sew>xlen guard remains for test generation.",
-    "timestamp": "2026-03-02 12:00:00"
-  },
-  "cp_custom_vfredosum_NAN_vl0": {
-    "status": "completed",
-    "coverage": "100%",
-    "fix": "Added get_vr_element_zero_widen() to RISCV_coverage_vector.svh (extracts at 2*SEW). Template uses OR of both SEW and 2*SEW checks. Script loads qNaN at 2*SEW for vfwredosum. ifndef COVER_VFCUSTOM64 guards widen block (no SEW128).",
-    "timestamp": "2026-03-02 22:00:00"
-  },
-  "cp_custom_vfp_flags": {
-    "status": "completed",
-    "coverage": "100%",
-    "fix": "Removed sew>xlen early return in cp_custom_vfp_flags.py so RV32 SEW64 tests are generated (cp_asm_count/std_vec/crosses were 0% due to no samples). Verified cp_custom_vfp_flags_set and cp_custom_vfp_flags_inactive_not_set are 100% in rv32/rv64 and SEW16/32/64 reports.",
-    "timestamp": "2026-03-22 18:02:49"
-  },
-  "cp_custom_vfp_NaN_input": {
-    "status": "untested",
-    "issue": "101 instructions, too slow for sail",
-    "timestamp": "2026-02-25"
-  },
-  "cp_custom_fmv_sf_vd_all_lmul": {
-    "status": "partial",
-    "coverage": "85.46%",
-    "issue": "Cross needs 128 bins (32 regs × 4 LMULs) but sail can only handle ~35 tests per file. Individual coverpoints (vd_all_regs, vtype_all_lmul) at 100%. Cross at 27.34%. Needs RTL sim for full coverage.",
-    "timestamp": "2026-02-25 08:11:00"
-  },
-  "cp_custom_fmv_fs_vs2_all_lmul": {
-    "status": "partial",
-    "coverage": "85.46%",
-    "issue": "Same cross issue as fmv_sf_vd_all_lmul. Cross 35/128 bins covered. Needs RTL sim.",
-    "timestamp": "2026-02-25 08:12:00"
-  },
-  "cp_custom_maskLS": {
-    "status": "completed",
-    "coverage": "100% (VlsCustom16/32/64); VlsCustom8=0% inherent (SEW>8 required)",
-    "fix": "Removed sew>xlen guard. SIGUPD_COUNT=5000 fixes sail timeout.",
-    "timestamp": "2026-02-25 18:00:00"
-  },
-  "cp_custom_vwholeRegLS_vill": {
-    "status": "partial",
-    "coverage": "VlsCustom8=100%; VlsCustom16/32/64=66.66%",
-    "issue": "Coverage framework bug: vill=1 shown in RVVI traces but not reported by coverage tool for EFFEW>8",
-    "timestamp": "2026-02-25 17:30:00"
-  },
-  "cp_custom_vwholeRegLS_lmul": {
-    "status": "completed",
-    "coverage": "100%",
-    "fix": "Removed sew>xlen guard. SIGUPD_COUNT=5000 fixes sail timeout.",
-    "timestamp": "2026-02-25 17:00:00"
-  },
-  "cp_custom_ffLS_update_vl": {
-    "status": "blocked",
-    "issue": "VlsCustom sail timeout. 32 instructions.",
-    "timestamp": "2026-02-25"
-  },
-  "cp_custom_ls_indexed": {
-    "status": "blocked",
-    "issue": "VlsCustom sail timeout. 128 instructions.",
-    "timestamp": "2026-02-25"
-  },
-  "cp_custom_indexed_emul_data_only": {
-    "status": "blocked",
-    "issue": "VlsCustom sail timeout. 128 instructions.",
-    "timestamp": "2026-02-25"
-  },
-  "cp_custom_masked_v0_operand": {
-    "status": "blocked",
-    "issue": "VlsCustom sail timeout. 288 instructions.",
-    "timestamp": "2026-02-25"
+  "VlsCustom": {
+    "cp_custom_vwholeRegLS_vill": {
+      "status": "partial",
+      "coverage": "VlsCustom8=100%; VlsCustom16/32/64=66.66%",
+      "issue": "Coverage framework bug: vill=1 shown in RVVI traces but not reported by coverage tool for EFFEW>8",
+      "timestamp": "2026-02-25 17:30:00"
+    },
+    "cp_custom_vwholeRegLS_lmul": {
+      "status": "completed",
+      "coverage": "100%",
+      "timestamp": "2026-02-25 17:00:00"
+    },
+    "cp_custom_maskLS": {
+      "status": "completed",
+      "coverage": "100% (VlsCustom16/32/64); VlsCustom8=0% inherent (SEW>8 required)",
+      "timestamp": "2026-02-25 18:00:00"
+    },
+    "cp_custom_ls_indexed": {
+      "status": "untested"
+    },
+    "cp_custom_ffLS_update_vl": {
+      "status": "untested"
+    },
+    "cp_custom_indexed_emul_data_only": {
+      "status": "untested"
+    },
+    "cp_custom_masked_v0_operand": {
+      "status": "untested"
+    }
   }
 }

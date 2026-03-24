@@ -17,6 +17,7 @@ All Claude guides follow two rules:
 | Coverpoint/CSV work | `guides/csv-editing.md` → `generators/coverage/templates/GUIDE.md` |
 | Custom test scripts (cp_custom_*.py) | `generators/testgen/scripts/custom/GUIDE.md` |
 | Coverage workflow (isolate → build → analyze) | `generators/testgen/scripts/custom/COVERAGE-WORKFLOW.md` |
+| Automated coverage (launch sub-Claudes) | `generators/testgen/scripts/custom/claude-scripts/COVERAGE-RUNNER.md` |
 | Vector encodings, CSR fields, FP edge values | `guides/vector-reference.md` |
 | Project architecture, commands, directory structure | `guides/architecture.md` |
 

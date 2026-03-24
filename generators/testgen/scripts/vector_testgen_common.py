@@ -1489,6 +1489,7 @@ def loadFloatReg(sew, register_argument_name: str, floating_point_register_data,
 
   writeLine(f"LA(x{scratchReg}, scratch)")
   if (precision > xlen): # precision = 64, xlen = 32
+    storeop = "sw"  # sd not available on RV32; store as two 32-bit halves
     writeLine(f"LI(x{memoryReg}, 0x{formatstrFP.format(register_value)[10:18]})",  f"# load x{memoryReg} with 32 MSBs {formatstrFP.format(register_value)}")
     writeLine(f"{storeop} x{memoryReg}, 0(x{scratchReg})",                         f"# store x{memoryReg} (0x{formatstrFP.format(register_value)[10:18]}) in memory")
     writeLine(f"LI(x{memoryReg}, 0x{formatstrFP.format(register_value)[2:10]})",   f"# load x{memoryReg} with 32 LSBs of {formatstrFP.format(register_value)}")

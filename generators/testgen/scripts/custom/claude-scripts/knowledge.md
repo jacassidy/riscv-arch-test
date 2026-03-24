@@ -143,7 +143,13 @@ The `@register()` decorator tag must match the **CSV column name** in `testplans
 
 ### SEW > XLEN on RV32 causes compilation failures
 
-When SEW=64 on RV32, `writeTest` generates `sd`/`fld` instructions that need D/zilsd extension. Skip with: `if sew > common.xlen: return` (import `vector_testgen_common as common`).
+When SEW=64 on RV32, some generated instructions may not be available. Two known cases:
+
+1. **Custom scripts using writeTest**: The `writeTest` function may generate instructions that assume RV64. For custom scripts that don't need SEW64 on RV32, skip with: `if sew > common.xlen: return` (import `vector_testgen_common as common`).
+
+2. **FP scalar register loading in vector_testgen_common.py (FIXED 2026-03-24)**: The `loadFPScalarReg()` function used `storeop = "sd"` for SEW=64 even on RV32. The code already had a `precision > xlen` branch that splits 64-bit values into two 32-bit stores at offsets 0 and 4, but used `sd` instead of `sw`. Fix: added `storeop = "sw"` override inside the `precision > xlen` branch (~line 1492). If you see `sd` errors in RV32 VfCustom64 tests, this is the cause — verify the fix is still in place.
+
+For **FP flag coverpoints** (cp_custom_vfp_flags and variants), do NOT skip SEW64 on RV32. These coverpoints require RV32+SEW64 coverage. The framework handles the FP scalar loading correctly after the above fix.
 
 ### Stop spinning on coverage issues
 
