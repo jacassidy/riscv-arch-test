@@ -21,7 +21,7 @@ Do NOT read GUIDE.md, knowledge.md, or template files when the task is only to c
 
 | Path                                                                | Role                                                                    |
 | ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `generators/testgen/scripts/custom/`                                | Custom cp\_\*.py scripts + this guide + GUIDE.md                         |
+| `generators/testgen/scripts/custom/`                                | Custom cp\_\*.py scripts + this guide + GUIDE.md                        |
 | `generators/testgen/scripts/custom/claude-scripts/`                 | Automation tools, progress tracking, knowledge base                     |
 | `generators/testgen/scripts/custom/claude-scripts/coverage_issues/` | Per-coverpoint `.md` files for blocked/unresolved coverage problems     |
 | `working-testplans/`                                                | CSV definitions, norm mappings, and helper scripts                      |
