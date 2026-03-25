@@ -341,6 +341,23 @@ def _gen_instruction_samples(
 ##################################
 
 
+def _get_sibling_sew_macros(arch: str, all_archs: list[str]) -> list[str]:
+    """Return COVER_* macro names for sibling SEW variants of this arch.
+
+    E.g. for "VfCustom64" with siblings ["VfCustom16", "VfCustom32", "VfCustom64"],
+    returns ["COVER_VFCUSTOM16", "COVER_VFCUSTOM32"] (excluding self).
+    """
+    match = re.search(r"^(.*?)(\d+)$", arch)
+    if not match:
+        return []
+    base = match.group(1)
+    return [
+        f"COVER_{a.upper()}"
+        for a in all_archs
+        if a != arch and a.startswith(base) and re.match(rf"^{re.escape(base)}\d+$", a)
+    ]
+
+
 def write_covergroups(
     test_plans: dict[str, dict[tuple[str, str], list[str]]],
     templates: dict[str, str],
@@ -350,6 +367,8 @@ def write_covergroups(
     unpriv_dir = output_dir / "unpriv"
     unpriv_dir.mkdir(parents=True, exist_ok=True)
 
+    all_archs = list(test_plans.keys())
+
     for arch, tp in track(test_plans.items(), description="[cyan]Generating covergroups...", total=len(test_plans)):
         vector = _is_vector(arch)
         effew = _get_effew(arch) if vector else ""
@@ -357,6 +376,12 @@ def write_covergroups(
 
         lines: list[str] = []
         init_lines: list[str] = []
+
+        # Undef sibling SEW macros so only this arch's macro is active
+        # (prevents conflicts when multiple SEW coverage files are compiled together)
+        if vector:
+            for macro in _get_sibling_sew_macros(arch, all_archs):
+                lines.append(f"`ifdef {macro}\n  `undef {macro}\n`endif\n")
 
         # Header
         header_tmpl = "header_vector" if vector else "header"

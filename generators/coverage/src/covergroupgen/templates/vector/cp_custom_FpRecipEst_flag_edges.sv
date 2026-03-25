@@ -28,8 +28,7 @@
 
             bins vs1_0_qNaN           = {64'h0000_0000_0000_7E00}; // qNaN input (canonical)
             bins vs1_0_sNaN           = {64'h0000_0000_0000_7D00}; // sNaN input (example)
-        `endif
-        `ifdef COVER_VFCUSTOM32
+        `elsif COVER_VFCUSTOM32
             bins vs1_0_neg_inf        = {64'h0000_0000_FF80_0000}; // -∞
             bins vs1_0_neg_zero       = {64'h0000_0000_8000_0000}; // -0.0
 
@@ -51,8 +50,7 @@
 
             bins vs1_0_qNaN           = {64'h0000_0000_7FC0_0000}; // qNaN input (canonical)
             bins vs1_0_sNaN           = {64'h0000_0000_7FA0_0000}; // sNaN input (example)
-        `endif
-        `ifdef COVER_VFCUSTOM64
+        `elsif COVER_VFCUSTOM64
             bins vs1_0_neg_inf        = {64'hFFF0_0000_0000_0000}; // -∞
             bins vs1_0_neg_zero       = {64'h8000_0000_0000_0000}; // -0.0
 

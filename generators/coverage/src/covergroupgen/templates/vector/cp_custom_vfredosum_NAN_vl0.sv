@@ -11,11 +11,9 @@
                 (get_vr_element_zero(ins.hart, ins.issue, ins.current.vs1_val) inside {
                 `ifdef COVER_VFCUSTOM16
                         [64'h0000_0000_0000_7E00:64'h0000_0000_0000_7FFF]
-                `endif
-                `ifdef COVER_VFCUSTOM32
+                `elsif COVER_VFCUSTOM32
                         [64'h0000_0000_7FC0_0000:64'h0000_0000_7FFF_FFFF]
-                `endif
-                `ifdef COVER_VFCUSTOM64
+                `elsif COVER_VFCUSTOM64
                         [64'h7FF8_0000_0000_0000:64'h7FFF_FFFF_FFFF_FFFF]
                 `endif
                 })
@@ -23,8 +21,7 @@
                 || (get_vr_element_zero_widen(ins.hart, ins.issue, ins.current.vs1_val) inside {
                 `ifdef COVER_VFCUSTOM16
                         [64'h0000_0000_7FC0_0000:64'h0000_0000_7FFF_FFFF]
-                `endif
-                `ifdef COVER_VFCUSTOM32
+                `elsif COVER_VFCUSTOM32
                         [64'h7FF8_0000_0000_0000:64'h7FFF_FFFF_FFFF_FFFF]
                 `endif
                 })

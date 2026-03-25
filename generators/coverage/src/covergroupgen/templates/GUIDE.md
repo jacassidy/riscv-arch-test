@@ -321,6 +321,32 @@ Width field (bits 14:12) encodes EEW: 000=8, 101=16, 110=32, 111=64.
     `endif
 ```
 
+### SEW-Specific Bin Values (COVER_VFCUSTOM guards)
+
+When bins need different values per SEW (e.g., NaN encodings at different FP widths), use
+`ifdef COVER_VFCUSTOMxx` guards. Each generated coverage file (`VfCustom16_coverage.svh`, etc.)
+defines exactly one `COVER_VFCUSTOMxx` macro. Sibling macros are automatically `undef`'d by
+`generate.py` at the top of each file, so only one is active at compile time. Both
+`ifdef`/`endif` chains and `ifdef`/`elsif`/`endif` chains are safe.
+
+```systemverilog
+    vs2_element0 : coverpoint get_vr_element_zero(ins.hart, ins.issue, ins.current.vs2_val) {
+        `ifdef COVER_VFCUSTOM16
+            bins val = {64'h0000_0000_0000_7E00}; // half
+        `endif
+        `ifdef COVER_VFCUSTOM32
+            bins val = {64'h0000_0000_7FC0_0000}; // single
+        `endif
+        `ifdef COVER_VFCUSTOM64
+            bins val = {64'h7FF8_0000_0000_0000}; // double
+        `endif
+    }
+```
+
+**Important**: The `undef` logic lives in `generate.py` (`_get_sibling_sew_macros`). If a new
+vector category with SEW variants is added, it is handled automatically. Do NOT manually add
+`define`/`undef` in templates — `generate.py` handles this.
+
 ### GPR Value Access
 
 ```systemverilog

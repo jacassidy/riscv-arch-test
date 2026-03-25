@@ -5,11 +5,9 @@
     FpRecEst_sig_in : coverpoint
     `ifdef COVER_VFCUSTOM16
     get_vr_element_zero(ins.hart, ins.issue, ins.current.vs2_val)[9:3]
-    `endif
-    `ifdef COVER_VFCUSTOM32
+    `elsif COVER_VFCUSTOM32
     get_vr_element_zero(ins.hart, ins.issue, ins.current.vs2_val)[22:16]
-    `endif
-    `ifdef COVER_VFCUSTOM64
+    `elsif COVER_VFCUSTOM64
     get_vr_element_zero(ins.hart, ins.issue, ins.current.vs2_val)[51:45]
     `endif
     {

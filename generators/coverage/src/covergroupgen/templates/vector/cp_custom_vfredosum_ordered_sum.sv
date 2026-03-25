@@ -6,11 +6,9 @@
     vs1_0_maxNorm : coverpoint get_vr_element_zero(ins.hart, ins.issue, ins.current.vs1_val) {
         `ifdef COVER_VFCUSTOM16
         bins maxNorm = {64'h7BFF};
-        `endif
-        `ifdef COVER_VFCUSTOM32
+        `elsif COVER_VFCUSTOM32
         bins maxNorm = {64'h7F7FFFFF};
-        `endif
-        `ifdef COVER_VFCUSTOM64
+        `elsif COVER_VFCUSTOM64
         bins maxNorm = {64'h7FEFFFFFFFFFFFFF};
         `endif
     }
@@ -18,11 +16,9 @@
     vs2_0_neg_maxNorm : coverpoint get_vr_element_zero(ins.hart, ins.issue, ins.current.vs2_val) {
         `ifdef COVER_VFCUSTOM16
         bins negMaxNorm = {64'hFBFF};
-        `endif
-        `ifdef COVER_VFCUSTOM32
+        `elsif COVER_VFCUSTOM32
         bins negMaxNorm = {64'hFF7FFFFF};
-        `endif
-        `ifdef COVER_VFCUSTOM64
+        `elsif COVER_VFCUSTOM64
         bins negMaxNorm = {64'hFFEFFFFFFFFFFFFF};
         `endif
     }

@@ -164,6 +164,16 @@
   `define SEW8_SUPPORTED
 `endif
 
+`ifdef VFCUSTOM64_COVERAGE
+  `define SEW64_SUPPORTED
+`endif
+`ifdef VFCUSTOM32_COVERAGE
+  `define SEW32_SUPPORTED
+`endif
+`ifdef VFCUSTOM16_COVERAGE
+  `define SEW16_SUPPORTED
+`endif
+
 // ELEN (max SEW) definition
 `ifdef VX64_COVERAGE
   `define ELEN64
@@ -189,6 +199,18 @@
       `define ELEN16
     `else
       `define ELEN8
+    `endif
+  `endif
+`endif
+
+`ifdef VFCUSTOM64_COVERAGE
+  `define ELEN64
+`else
+  `ifdef VFCUSTOM32_COVERAGE
+    `define ELEN32
+  `else
+    `ifdef VFCUSTOM16_COVERAGE
+      `define ELEN16
     `endif
   `endif
 `endif

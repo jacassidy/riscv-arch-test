@@ -26,9 +26,8 @@
             bins vs2_0_qNaN       = {64'h0000_0000_0000_7E00};
             // sNaN_h payload1 = 0x7D01
             bins vs2_0_sNaN       = {64'h0000_0000_0000_7D01};
-        `endif
 
-        `ifdef COVER_VFCUSTOM32
+        `elsif COVER_VFCUSTOM32
             // -1.0f = 0xBF800000
             bins vs2_0_neg_finite = {64'h0000_0000_BF80_0000};
             // -Inf_f = 0xFF800000
@@ -47,9 +46,8 @@
             bins vs2_0_qNaN       = {64'h0000_0000_7FC0_0000};
             // sNaN_f payload1 = 0x7F800001
             bins vs2_0_sNaN       = {64'h0000_0000_7F80_0001};
-        `endif
 
-        `ifdef COVER_VFCUSTOM64
+        `elsif COVER_VFCUSTOM64
             // -1.0d = 0xBFF0000000000000
             bins vs2_0_neg_finite = {64'hBFF0_0000_0000_0000};
             // -Inf_d = 0xFFF0000000000000
