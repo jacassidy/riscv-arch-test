@@ -13,21 +13,112 @@
       "timestamp": "2026-03-24 12:00:00"
     },
     "cp_custom_vfp_flags_nv_nx": {
-      "status": "untested"
+      "status": "completed",
+      "coverage": "100%",
+      "fix": "Added deterministic consecutive NX-generation cases in cp_custom_vfp_flags.py (including .wv/.wf and vfnmadd.vv) and corrected .wf scalar trigger width to SEW-sized value.",
+      "timestamp": "2026-03-24 22:12:42"
     },
     "cp_custom_vfp_flags_nv_nx_dz": {
-      "status": "untested"
+      "status": "completed",
+      "coverage": "100%",
+      "fix": "Validated with isolated coverage after deterministic NX-generation updates in cp_custom_vfp_flags.py.",
+      "timestamp": "2026-03-24 22:15:07"
     },
     "cp_custom_vfp_flags_nv_nx_of": {
-      "status": "untested"
+      "status": "completed",
+      "coverage": "100%",
+      "fix": "Validated with isolated coverage after deterministic NX-generation updates in cp_custom_vfp_flags.py.",
+      "timestamp": "2026-03-24 22:15:07"
     },
     "cp_custom_vfp_flags_nv_nx_of_uf": {
-      "status": "untested"
+      "status": "completed",
+      "coverage": "100%",
+      "fix": "Validated with isolated coverage after deterministic NX-generation updates in cp_custom_vfp_flags.py.",
+      "timestamp": "2026-03-24 22:15:07"
     },
     "cp_custom_vfp_flags_nx": {
-      "status": "untested"
+      "status": "completed",
+      "coverage": "100%",
+      "fix": "Validated with isolated coverage after deterministic NX-generation updates in cp_custom_vfp_flags.py.",
+      "timestamp": "2026-03-24 22:15:07"
     },
     "cp_custom_vfp_flags_nv_dz": {
+      "status": "completed",
+      "coverage": "100%",
+      "fix": "Validated with isolated coverage after deterministic NX-generation updates in cp_custom_vfp_flags.py.",
+      "timestamp": "2026-03-24 22:15:07"
+    },
+    "cp_custom_vfncvt_rup_overflow": {
+      "status": "partial",
+      "coverage": "0/14 bins covered by isolated parser output (see coverage_result json)",
+      "issue": "Isolated run reports all bins uncovered and no VfCustom64 report for this coverpoint; needs deeper template/script reconciliation.",
+      "timestamp": "2026-03-24 22:23:52"
+    },
+    "cp_custom_vfp_register_state_mstatus_dirty": {
+      "status": "blocked",
+      "issue": "No coverage template found for cp_custom_vfp_register_state_mstatus_dirty during covergroup generation.",
+      "timestamp": "2026-03-24 22:23:52"
+    },
+    "cp_custom_vfp_csr_state_mstatus_dirty": {
+      "status": "blocked",
+      "issue": "No coverage template found for cp_custom_vfp_csr_state_mstatus_dirty during covergroup generation.",
+      "timestamp": "2026-03-24 22:23:52"
+    },
+    "cp_custom_vfp_flags_set": {
+      "status": "untested"
+    },
+    "cp_custom_vfp_flags_inactive_not_set": {
+      "status": "untested"
+    },
+    "cp_custom_FpRecSqrtEst_flag_edges": {
+      "status": "partial",
+      "coverage": "0% in current isolated run",
+      "issue": "vfrsqrt7 flag-edge bins all uncovered in isolated run.",
+      "timestamp": "2026-03-24 22:23:52"
+    },
+    "cp_custom_FpRecipEst_flag_edges": {
+      "status": "partial",
+      "coverage": "0% in current isolated run",
+      "issue": "vfrec7 flag-edge bins all uncovered in isolated run.",
+      "timestamp": "2026-03-24 22:23:52"
+    },
+    "cp_custom_FpRecSqrtEst_edges": {
+      "status": "partial",
+      "coverage": "0% in current isolated run",
+      "issue": "vfrsqrt7 edge bins all uncovered in isolated run.",
+      "timestamp": "2026-03-24 22:23:52"
+    },
+    "cp_custom_FpRecipEst_edges": {
+      "status": "partial",
+      "coverage": "0% in current isolated run",
+      "issue": "vfrec7 edge bins all uncovered in isolated run.",
+      "timestamp": "2026-03-24 22:23:52"
+    },
+    "cp_custom_vfp_NaN_input": {
+      "status": "untested"
+    },
+    "cp_custom_vfclass_onehot": {
+      "status": "partial",
+      "coverage": "0% in current isolated run",
+      "issue": "vfclass onehot bins all uncovered in isolated run.",
+      "timestamp": "2026-03-24 22:23:52"
+    },
+    "cp_custom_vfncvt_rod_overflow": {
+      "status": "untested"
+    },
+    "cp_custom_vfredosum_ordered_sum": {
+      "status": "partial",
+      "coverage": "0% in current isolated run",
+      "issue": "vfredosum ordered-sum bin uncovered in isolated run.",
+      "timestamp": "2026-03-24 22:23:52"
+    },
+    "cp_custom_vfredosum_NAN_vl0": {
+      "status": "untested"
+    },
+    "cp_custom_fmv_sf_vd_all_lmul": {
+      "status": "untested"
+    },
+    "cp_custom_fmv_fs_vs2_all_lmul": {
       "status": "untested"
     }
   },

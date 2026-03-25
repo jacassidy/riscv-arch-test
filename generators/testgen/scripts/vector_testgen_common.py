@@ -1255,7 +1255,7 @@ def insertTemplate(test, signatureWords, name, sew=0, vdsew=0, test_data=""):
         .replace("@SIGUPD_COUNT_FROM_TESTGEN@", str(int(os.environ.get("SIGUPD_COUNT", 50000))))
         .replace("@CONFIG_DEPENDENT@", "true")  # TODO: Make this configurable for some tests (e.g. Zimop)
         .replace("@TESTCASE_STRINGS@", generate_testcase_string_section())
-        .replace("@EXTRA_DEFINES@", f"#define RVTEST_VECTOR\n#define RVTEST_SEW {sew}\n#define VDSEW {vdsew}")
+        .replace("@EXTRA_DEFINES@", f"#define RVTEST_VECTOR\n#define RVTEST_FP\n#define RVTEST_SEW {sew}\n#define VDSEW {vdsew}")
     )
     writeLine(template)
 
