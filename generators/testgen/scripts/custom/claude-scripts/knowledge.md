@@ -44,6 +44,10 @@ vfrsqrt7/vfrec7 bin coverage requires both **even and odd exponents** to cover a
 
 `vs_corner_f_sNaN_payload1` generates: SEW16=`0x7D01`, SEW32=`0x7F800001`, SEW64=`0x7FF0000000000001`. Verify template bin values match.
 
+## vmv.v.i v0 Before vsetvli (Fixed)
+
+`writeTest()` previously emitted `vmv.v.i v0, 0` (mask init for masked instructions like `vfmerge.vfm`) **before** `prepBaseV()` which calls `vsetvli`. After reset, `vtype.vill=1`, so the bare `vmv.v.i` had undefined behavior — sail hung indefinitely. **Fixed** in `vector_testgen_common.py`: bare `vmv.v.i v0, 0` cases (maskval `"zeroes"` and default masked-instruction init) now emit after `prepBaseV`. Mask types with their own `vsetvli` (`"ones"`, `"vlmaxm1_ones"`, etc.) still run before `prepBaseV` so it restores the correct vtype.
+
 ## Framework Limitations
 
 - `writeTest(vl=0)` sets VL=0 before vector loads — impossible to pre-load data for VL=0 tests

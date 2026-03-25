@@ -1679,7 +1679,6 @@ def prepMaskV(maskval, sew, tempReg, lmul):
     writeLine("vmv.v.i v0, 0",                               "# Reset mask value to 0")
     writeLine(f"vmsltu.vx v0, v1, x{tempReg}",               "# v0[i] = (i < VLMAX/2+1) ? 1 : 0")
   else: # random mask
-    writeLine("vmv.v.i v0, 0",                               "# Reset mask value to 0")
     writeLine(f"la x{tempReg}, {maskval}")
     writeLine(f"vlm.v v0, (x{tempReg})",                      "# Load mask value into v0")
 
@@ -1805,13 +1804,19 @@ def writeTest(description, instruction, instruction_data,
     if instruction in vfloattypes:
       writeLine("fsflagsi 0b00000", "# clear all fflags")
 
-    # If mask value specified, load to v0
-    if maskval is not None:
+    # If mask value specified, load to v0 (must be before prepBaseV for types that
+    # do their own vsetvli, so prepBaseV restores the correct vl/vtype afterward)
+    if maskval is not None and maskval != "zeroes":
       prepMaskV(maskval, sew, tempReg, lmul)
-    elif any(instruction in instype for instype in [vvivtype, vvvvtype, vvxvtype, vvfvtype]):
-      writeLine("vmv.v.i v0, 0", "# set v0 register to 0 in base suit where vm is fixed to 0")
 
     scalar_registers_used = prepBaseV(sew, lmul, vl, vstart, vta, vma, *scalar_registers_used)
+
+    # These bare vmv.v.i cases must be after prepBaseV which sets vsetvli (otherwise
+    # vtype is invalid after reset and the vector instruction hangs in sail)
+    if maskval == "zeroes":
+      writeLine("vmv.v.i v0, 0", "# set v0 register to 0 in base suit where vm is fixed to 0")
+    elif maskval is None and any(instruction in instype for instype in [vvivtype, vvvvtype, vvxvtype, vvfvtype]):
+      writeLine("vmv.v.i v0, 0", "# set v0 register to 0 in base suit where vm is fixed to 0")
 
     if frm is not None:
       scalar_registers_used = loadFrmRoundingMode(frm, *scalar_registers_used)

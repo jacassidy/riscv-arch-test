@@ -5,11 +5,13 @@ All coverpoint templates live in this directory (`generators/coverage/templates/
 ## File Types & Naming
 
 ### Type 1: Custom Coverpoints (Multiple per file)
+
 - **Filename**: `cp_custom_v<instruction_category>.sv` (e.g., `cp_custom_vwvv.sv`)
 - **Contains**: ALL custom coverpoints for that instruction category
 - Define helpers once at top, reuse them in crosses
 
 ### Type 2: Non-Custom Coverpoints (One per file)
+
 - **Filename**: Matches coverpoint name (e.g., `cp_vstart_gt_vl.sv`)
 - **Contains**: Single coverpoint only — no crosses, no helpers
 
@@ -70,12 +72,12 @@ All coverpoint templates live in this directory (`generators/coverage/templates/
 
 ## Template Replacement Keywords
 
-| Keyword | Replaced With |
-|---------|---------------|
-| `INSTR` | instruction mnemonic (e.g., `vfredosum.vs`) |
+| Keyword      | Replaced With                                  |
+| ------------ | ---------------------------------------------- |
+| `INSTR`      | instruction mnemonic (e.g., `vfredosum.vs`)    |
 | `INSTRNODOT` | mnemonic with `.` → `_` (e.g., `vfredosum_vs`) |
-| `ARCH` | extension lowercase (e.g., `vx64`) |
-| `EFFEW` | vector element width (e.g., `16`, `32`) |
+| `ARCH`       | extension lowercase (e.g., `vx64`)             |
+| `EFFEW`      | vector element width (e.g., `16`, `32`)        |
 
 ## Allowed Bin Syntax
 
@@ -127,6 +129,9 @@ wildcard ignore_bins name = {5'b???00};       // Exclude wildcard
     }
 
     // All LMULs including fractional (REQUIRED when covering fractional — DUT-optional)
+    // NOTE: For FP instructions (SEW >= 16), fractional LMULs must satisfy LMUL >= SEW/ELEN.
+    // Gate fractional bins with COVER_VFCUSTOM* defines: mf8 never valid for FP,
+    // mf4 only at SEW=16 (COVER_VFCUSTOM16), mf2 not at SEW=64 (ifndef COVER_VFCUSTOM64).
     vtype_all_lmul: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vlmul") {
         `ifdef LMULf8_SUPPORTED
             bins eighth  = {5};
@@ -327,28 +332,29 @@ Width field (bits 14:12) encodes EEW: 000=8, 101=16, 110=32, 111=64.
 
 ### Direct Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `ins.trap` | bit | 1 if instruction trapped |
-| `ins.hart` | int | Hart ID |
-| `ins.issue` | int | Issue number |
-| `ins.ins_str` | string | Instruction mnemonic |
+| Field         | Type   | Description              |
+| ------------- | ------ | ------------------------ |
+| `ins.trap`    | bit    | 1 if instruction trapped |
+| `ins.hart`    | int    | Hart ID                  |
+| `ins.issue`   | int    | Issue number             |
+| `ins.ins_str` | string | Instruction mnemonic     |
 
 ### ins.current Fields
 
 **Instruction bits**: `ins.current.insn[31:0]`
 
-| Bits | Field |
-|------|-------|
-| [6:0] | opcode |
-| [11:7] | rd/vd |
-| [14:12] | funct3 |
-| [19:15] | rs1/vs1 |
-| [24:20] | rs2/vs2 |
-| [25] | vm (0=masked) |
-| [31:25] | funct7 |
+| Bits    | Field         |
+| ------- | ------------- |
+| [6:0]   | opcode        |
+| [11:7]  | rd/vd         |
+| [14:12] | funct3        |
+| [19:15] | rs1/vs1       |
+| [24:20] | rs2/vs2       |
+| [25]    | vm (0=masked) |
+| [31:25] | funct7        |
 
 **Register values**:
+
 - `ins.current.rd_val`, `ins.current.rd_val_pre`
 - `ins.current.rs1_val`, `ins.current.rs2_val`
 - `ins.current.fd_val`, `ins.current.fs1_val`, `ins.current.fs2_val`
@@ -356,12 +362,14 @@ Width field (bits 14:12) encodes EEW: 000=8, 101=16, 110=32, 111=64.
 - `ins.current.v0_val` — mask register
 
 **Vector state**:
+
 - `ins.current.vm` — 1=unmasked, 0=masked
 - `ins.current.eSEW` — 0=e8, 1=e16, 2=e32, 3=e64
 - `ins.current.mLMUL` — 5=mf8, 6=mf4, 7=mf2, 0=m1, 1=m2, 2=m4, 3=m8
 - `ins.current.ta`, `ins.current.ma` — tail/mask agnostic
 
 **Other**:
+
 - `ins.current.imm` — immediate value
 - `ins.current.mode` — 0=User, 1=Supervisor, 3=Machine
 - `ins.current.mem_addr` — calculated memory address
@@ -369,6 +377,7 @@ Width field (bits 14:12) encodes EEW: 000=8, 101=16, 110=32, 111=64.
 ### ins.prev Fields
 
 Pre-instruction state. Same structure as `ins.current`.
+
 - `ins.prev.x_wdata[idx]` — GPR values before instruction
 - `ins.prev.f_wdata[idx]` — FPR values before instruction
 

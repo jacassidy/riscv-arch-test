@@ -17,14 +17,17 @@
     }
 
     vtype_all_lmul: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vlmul") {
-        `ifdef LMULf8_SUPPORTED
-            bins eighth  = {5};
+        // Fractional LMULs gated by SEW: LMUL >= SEW/ELEN required
+        // mf8 never valid for FP (SEW >= 16, needs SEW <= 8)
+        `ifdef COVER_VFCUSTOM16
+            `ifdef LMULf4_SUPPORTED
+                bins fourth = {6};
+            `endif
         `endif
-        `ifdef LMULf4_SUPPORTED
-            bins fourth = {6};
-        `endif
-        `ifdef LMULf2_SUPPORTED
-            bins half   = {7};
+        `ifndef COVER_VFCUSTOM64
+            `ifdef LMULf2_SUPPORTED
+                bins half   = {7};
+            `endif
         `endif
         bins one    = {0};
         bins two    = {1};

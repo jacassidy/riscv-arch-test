@@ -28,7 +28,10 @@ def make(test, sew):
     if sew > common.xlen:
         return
 
-    for lmul in ALL_LMULS:
+    # Filter: LMUL must be >= SEW/ELEN for valid vtype (fractional LMUL only supports SEW <= LMUL*ELEN)
+    valid_lmuls = [l for l in ALL_LMULS if l >= sew / common.maxELEN]
+
+    for lmul in valid_lmuls:
         # LMUL=1: all 32 regs. Others: just vs2=0 to hit the LMUL bin.
         vs2_values = range(32) if lmul == 1 else [0]
         for vs2 in vs2_values:
