@@ -9,8 +9,10 @@
 - VVM unary ops (vfsqrt, vfrsqrt7, vfrec7, vfclass): source data is **vs2**, use `vs2_val_pointer`
 - **NEVER use `vs2_val=integer`** — sign-extends from XLEN, truncates on RV32. Always use `vs2_val_pointer=label`
 - Wrap `randomizeVectorInstructionData()` in `try/except ValueError: pass` for segmented/whole-register LS instructions (overlap constraints unsolvable at high LMUL/NF)
-- For FP flag coverpoints, do NOT skip SEW64 on RV32 (`if sew > common.xlen: return` kills coverage)
+- Always add `if sew > common.xlen: return` guard for FP scripts (SEW=64 on RV32 generates sd/ld which need zilsd)
 - `.wf` scalar presets: use SEW-sized values for `fs1_val`, not widened-width (scalar load follows SEW)
+- **NEVER manually pick vd/vs2/vs1 with `randint()` for LS instructions** — EMUL = EEW/SEW × LMUL can differ from LMUL, requiring alignment the manual pick won't respect. Let `randomizeVectorInstructionData()` assign registers (it knows EMUL), and use `additional_no_overlap` to enforce constraints like `vd != v0`. E.g. `additional_no_overlap=[['vd', 'v0']]` instead of `vd=randint(1,31)`.
+- **Guard against illegal nf × EMUL > 8 for LS instructions** — Per the RISC-V V spec, `nf × EMUL` must not exceed 8 (the operation is illegal otherwise). When `lmul > 1` and the instruction has `EEW ≠ SEW` or `nf > 1`, compute `emul = EEW/SEW × lmul` and do not generate if `emul × nf > 8` (e.g., `vlseg3e64ff.v` with SEW=16, LMUL=2 → EMUL=8, nf=3 → nf×EMUL=24, illegal). See GUIDE.md for the guard pattern.
 
 ## Template Rules
 
@@ -47,6 +49,10 @@ vfrsqrt7/vfrec7 bin coverage requires both **even and odd exponents** to cover a
 ## vmv.v.i v0 Before vsetvli (Fixed)
 
 `writeTest()` previously emitted `vmv.v.i v0, 0` (mask init for masked instructions like `vfmerge.vfm`) **before** `prepBaseV()` which calls `vsetvli`. After reset, `vtype.vill=1`, so the bare `vmv.v.i` had undefined behavior — sail hung indefinitely. **Fixed** in `vector_testgen_common.py`: bare `vmv.v.i v0, 0` cases (maskval `"zeroes"` and default masked-instruction init) now emit after `prepBaseV`. Mask types with their own `vsetvli` (`"ones"`, `"vlmaxm1_ones"`, etc.) still run before `prepBaseV` so it restores the correct vtype.
+
+## prepMaskV vid.v Alignment (Fixed)
+
+`prepMaskV()` uses `vid.v` + `vmsltu` to build mask patterns in v0. Previously it always used `vid.v v1`, which is illegal when LMUL>=2 (v1 is not aligned to the register group size). **Fixed**: temp vreg is now `int(lmul)` when lmul>=2 (v2 for LMUL=2, v4 for LMUL=4, v8 for LMUL=8), v1 otherwise. Overlap with test operand regs is fine since mask setup runs before operand loads.
 
 ## Framework Limitations
 

@@ -7,6 +7,7 @@ Cross: std_vec x vs1_0_reciprocal_sqrt_edges x fp_flags_clear
 """
 
 from coverpoint_registry import register
+import vector_testgen_common as common
 from vector_testgen_common import (
     writeTest,
     randomizeVectorInstructionData,
@@ -49,6 +50,9 @@ def _emit(test, sew, label, desc):
 
 @register("cp_custom_FpRecSqrtEst_flag_edges")
 def make(test, sew):
+    if sew > common.xlen:
+        return
+
     for label, desc, sets_flags in EDGE_CASES:
         _emit(test, sew, label, desc)
         if sets_flags:

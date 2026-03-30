@@ -51,15 +51,35 @@ timeout 30 /opt/riscv/bin/sail_riscv_sim \
 - `--trace-reg` shows register reads/writes (very verbose, use smaller inst-limit)
 - Useful for checking vtype/vl state: grep for `vtype` or `vl` in output
 
-## Step 4: Cross-reference with Source
+## Step 4: Read the Source Assembly and Identify the Coverpoint
+
+Open the source `.S` file at `tests/rv64i/<Extension>/<filename>.S` (not in `work/`). Each test section has a comment like:
+
+```asm
+# Testcase cp_custom_ffLS_update_vl (vle16ff.v, lmul=2, vl=vlmax, masked)
+```
+
+Find the section containing the failing instruction address and read the full assembly for that testcase. The comment names the `cp_custom_*` script that generated it.
+
+## Step 5: Diagnose from the Assembly First
+
+Understand the problem from the assembly before reading any Python. The assembly shows exactly what instructions execute and in what order. Common things to check:
+
+- Is a vector register misaligned for the current LMUL? (e.g. `vid.v v1` with LMUL=2)
+- Is vtype valid after the most recent `vsetvli`?
+- Is the failing instruction part of the test itself or part of scaffolding (mask setup, operand loads)?
+
+If the issue is in scaffolding (mask preamble, register loads), the fix likely belongs in `vector_testgen_common.py`. If it's in the test instruction itself, the fix belongs in the `cp_custom_*.py` script named in the comment.
+
+Only read `vector_testgen_common.py` after you understand the assembly-level problem and know which function to target.
+
+## Step 6: Cross-reference with objdump if Needed
 
 Use `objdump` to correlate addresses back to test labels:
 
 ```bash
 riscv64-unknown-elf-objdump -d <path-to-elf> | grep -A2 -B2 "<address>"
 ```
-
-The source `.S` file lives at `tests/rv64i/<Extension>/<filename>.S` (not in `work/`).
 
 ## Other Useful Sail Flags
 
@@ -89,7 +109,13 @@ If `vsetvli` or `vsetvl` produces `vtype = 0x8000000000000000` (RV64) or `0x8000
 
 The test framework doesn't install trap handlers. Any exception (illegal instruction, misaligned access, etc.) causes an infinite loop at the default trap vector.
 
-### 3. vmv.v.i before vsetvli (historical, fixed)
+### 3. LMUL-misaligned vector register in scaffolding (historical, fixed)
+
+Mask setup preamble used `vid.v v1` regardless of LMUL. With LMUL>=2, v1 is not aligned to the register group size, causing an illegal instruction trap. **Fixed**: `prepMaskV()` now uses `v{int(lmul)}` as the temp register (v2 for LMUL=2, v4 for LMUL=4, v8 for LMUL=8).
+
+**Diagnosis**: Sail trace shows `mcause <- 0x2` (illegal instruction) immediately after a `vid.v` or `vmsltu.vx` on an odd-numbered register with LMUL>1.
+
+### 4. vmv.v.i before vsetvli (historical, fixed)
 
 See knowledge.md entry "vmv.v.i v0 Before vsetvli" — previously caused hangs when vtype.vill=1 after reset.
 

@@ -1658,26 +1658,31 @@ def getInstructionEEW(instruction):
 
 def prepMaskV(maskval, sew, tempReg, lmul):
   lmulflag = getLmulFlag(lmul)
+  # vid.v requires an lmul-aligned register. v1 is fine for lmul<=1, but
+  # for lmul>=2 we pick the first aligned register after v0. Overlap with
+  # test operand registers is OK since this is just mask setup scaffolding.
+  mask_vreg = int(lmul) if lmul >= 2 else 1
+
   if (maskval == "zeroes"):
     writeLine("vmv.v.i v0, 0",                               "# Set mask value to 0")
   elif (maskval == "ones"):
     writeLine(f"vsetvli x{tempReg}, x0, e{sew}, m{lmulflag}, ta, ma",  f"# x{tempReg} = VLMAX")
-    writeLine("vid.v v1",                                    "# v1 = [0,1,2,...]")
+    writeLine(f"vid.v v{mask_vreg}",                          f"# v{mask_vreg} = [0,1,2,...]")
     writeLine("vmv.v.i v0, 0",                               "# Reset mask value to 0")
-    writeLine(f"vmsltu.vx v0, v1, x{tempReg}",               "# v0[i] = (i < VLMAX) ? 1 : 0")
+    writeLine(f"vmsltu.vx v0, v{mask_vreg}, x{tempReg}",     "# v0[i] = (i < VLMAX) ? 1 : 0")
   elif (maskval == "vlmaxm1_ones"):
     writeLine(f"vsetvli x{tempReg}, x0, e{sew}, m{lmulflag}, ta, ma",  f"# x{tempReg} = VLMAX")
     writeLine(f"addi x{tempReg}, x{tempReg}, -1",             f"# x{tempReg} = VLMAX - 1")
-    writeLine("vid.v v1",                                    "# v1 = [0,1,2,...]")
+    writeLine(f"vid.v v{mask_vreg}",                          f"# v{mask_vreg} = [0,1,2,...]")
     writeLine("vmv.v.i v0, 0",                               "# Reset mask value to 0")
-    writeLine(f"vmsltu.vx v0, v1, x{tempReg}",               "# v0[i] = (i < VLMAX-1) ? 1 : 0")
+    writeLine(f"vmsltu.vx v0, v{mask_vreg}, x{tempReg}",     "# v0[i] = (i < VLMAX-1) ? 1 : 0")
   elif (maskval == "vlmaxd2p1_ones"):
     writeLine(f"vsetvli x{tempReg}, x0, e{sew}, m{lmulflag}, ta, ma",  f"# x{tempReg} = VLMAX")
     writeLine(f"srli x{tempReg}, x{tempReg}, 1",              f"# x{tempReg} = VLMAX / 2")
     writeLine(f"addi x{tempReg}, x{tempReg}, 1",              f"# x{tempReg} = VLMAX / 2 + 1")
-    writeLine("vid.v v1",                                    "# v1 = [0,1,2,...]")
+    writeLine(f"vid.v v{mask_vreg}",                          f"# v{mask_vreg} = [0,1,2,...]")
     writeLine("vmv.v.i v0, 0",                               "# Reset mask value to 0")
-    writeLine(f"vmsltu.vx v0, v1, x{tempReg}",               "# v0[i] = (i < VLMAX/2+1) ? 1 : 0")
+    writeLine(f"vmsltu.vx v0, v{mask_vreg}, x{tempReg}",     "# v0[i] = (i < VLMAX/2+1) ? 1 : 0")
   else: # random mask
     writeLine(f"la x{tempReg}, {maskval}")
     writeLine(f"vlm.v v0, (x{tempReg})",                      "# Load mask value into v0")
@@ -1740,6 +1745,18 @@ def writeTest(description, instruction, instruction_data,
               sew=None, lmul=1, vl=1, vstart=0, maskval=None, vxrm=None,
               frm=None, vxsat=None, vta=0, vma=0):
     global tab_count
+
+    # Skip illegal nf × EMUL > 8 combinations (RISC-V V spec constraint)
+    nf = getInstructionSegments(instruction)
+    if nf > 1 and instruction not in whole_register_ls:
+      eew = None
+      if   instruction in eew64_ins : eew = 64
+      elif instruction in eew32_ins : eew = 32
+      elif instruction in eew16_ins : eew = 16
+      elif instruction in eew8_ins  : eew = 8
+      emul = (eew * lmul // sew) if eew is not None else lmul
+      if nf * emul > 8:
+        return
 
     writeLine("\n")
 

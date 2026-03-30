@@ -1,31 +1,22 @@
 # CLAUDE.md
 
-**MANDATORY: Read `guides/meta.md` before doing ANYTHING else — no exceptions, no skipping even for simple tasks.**
+## Rules
 
-## Guide Structure
-
-All Claude guides follow two rules:
-1. **Meta-rules and general skills** → `guides/` (one file per topic, read first)
-2. **Task guides specific to a code directory** → a `GUIDE.md` in that directory
-
-**When creating a new .md**: put it in `guides/` if it's general, next to the relevant code if directory-specific. Each file is completely and only what its name says — no overlap, no duplication between files.
+- Update the relevant guide immediately when corrected or when you learn something new.
+- Verify work before marking complete (run tests, check logs).
+- Read the guide for a task before reading raw code.
+- ONLY modify coverpoint templates and `cp_custom_*.py` scripts unless the user explicitly names another file.
+- **NEVER use Agent with `subagent_type=Explore`** unless the user explicitly gives permission. Direct Grep/Glob/Read is fine.
 
 ## Task Routing
 
-| Task | Read First |
-|------|------------|
-| Coverpoint/CSV work | `guides/csv-editing.md` → `generators/coverage/templates/GUIDE.md` |
-| Custom test scripts (cp_custom_*.py) | `generators/testgen/scripts/custom/GUIDE.md` |
-| Coverage workflow (isolate → build → analyze) | `generators/testgen/scripts/custom/COVERAGE-WORKFLOW.md` |
-| Automated coverage (launch sub-Claudes) | `generators/testgen/scripts/custom/claude-scripts/COVERAGE-RUNNER.md` |
-| Vector encodings, CSR fields, FP edge values | `guides/vector-reference.md` |
-| Project architecture, commands, directory structure | `guides/architecture.md` |
-
-## Project File Rules
-- Only modify coverpoint template files unless explicitly instructed otherwise.
-- CSVs: use `csv_edit.py` only when explicitly asked.
-- For suggestions about other files: tell the user verbally, don't edit.
-
-## Self-Improvement
-
-**MANDATORY: When corrected or when you learn something new, update the relevant guide immediately — do not wait to be asked.** The routing table above tells you which file to update.
+| Task                                   | Read                                                            |
+| -------------------------------------- | --------------------------------------------------------------- |
+| Fix coverage holes                     | `generators/testgen/scripts/custom/CLAUDE-coverage-workflow.md` |
+| Write/edit CSV cells                   | `guides/csv-editing.md`                                         |
+| Write/fix cp*custom*\*.py script       | `generators/testgen/scripts/custom/GUIDE.md`                    |
+| Write/fix .sv coverage template        | `generators/coverage/templates/GUIDE.md`                        |
+| Look up vector encodings/FP hex values | `guides/vector-reference.md` (grep, don't read whole file)      |
+| Project structure, build commands      | `guides/architecture.md`                                        |
+| Debug a hanging test                   | `guides/debugging-hangs.md`                                     |
+| Known pitfalls and bugs                | `generators/testgen/scripts/custom/claude-scripts/knowledge.md` |

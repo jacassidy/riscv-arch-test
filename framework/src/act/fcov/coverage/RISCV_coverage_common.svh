@@ -174,6 +174,16 @@
   `define SEW16_SUPPORTED
 `endif
 
+`ifdef VLSCUSTOM64_COVERAGE
+  `define SEW64_SUPPORTED
+`endif
+`ifdef VLSCUSTOM32_COVERAGE
+  `define SEW32_SUPPORTED
+`endif
+`ifdef VLSCUSTOM16_COVERAGE
+  `define SEW16_SUPPORTED
+`endif
+
 // ELEN (max SEW) definition
 `ifdef VX64_COVERAGE
   `define ELEN64
