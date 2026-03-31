@@ -9,8 +9,8 @@
 // largest finite FP32 value with the same sign.
 // //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+`ifdef COVER_VFCUSTOM32
     // Standard vector preconditions: vill=0, vstart=0, vl!=0, no trap
-
 
     // SEW = 32 (destination is 32-bit single, source is 64-bit double)
     rod_vtype_sew_32: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vsew") {
@@ -31,5 +31,6 @@
     }
 
     cp_custom_vfncvt_rod_overflow: cross std_vec, rod_vtype_sew_32, rod_vs2_exceeds_f32_range;
+`endif
 
 //// end cp_custom_vfncvt_rod_overflow ///////////////////////////////////////////////////////////////////////////
