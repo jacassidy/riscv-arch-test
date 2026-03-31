@@ -44,14 +44,17 @@ def make(test, sew):
     if test not in vfloattypes:
         return
 
+    # Emit sNaN first (before any FP op dirties fflags) to avoid the
+    # fsflagsi/fcsr RVVI stale-CSR bug.  Then qNaN second.
     nans = NAN_VALUES.get(sew, [])
-    for val, desc in nans:
+    for val, desc in reversed(nans):
         label = f"custom_nan_{desc}_sew{sew}"
         registerCustomData(label, [val], element_size=sew)
         description = f"cp_custom_vfp_NaN_input ({desc}, {test})"
         data = randomizeVectorInstructionData(
             test, sew, getBaseSuiteTestCount(),
             lmul=1, vs2_val_pointer=label,
+            additional_no_overlap=[['vs2', 'vs1']],
         )
         writeTest(description, test, data, sew=sew, lmul=1, vl=1)
         incrementBasetestCount()

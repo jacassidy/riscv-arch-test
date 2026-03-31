@@ -2,6 +2,10 @@
 
 **Read after you have coverage results, not before.**
 
+## Verification Rule
+
+**Always rerun coverage to verify a fix.** After editing a script or template, rebuild (`make clean && make vector-tests`) and rerun coverage (`make coverage` + `coverage_summary.py`). Do not read generated files, assembly, or framework code to guess whether a fix worked or whether a problem affects other instructions — the coverage report answers both questions faster and with certainty.
+
 ## Script Rules
 
 - `@register("cp_custom_...")` must match the **CSV column name**, not the definition name

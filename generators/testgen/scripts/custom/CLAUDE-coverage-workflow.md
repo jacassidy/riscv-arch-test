@@ -2,6 +2,8 @@
 
 **Run first, read results, then fix.** Do not read scripts or templates until you have a coverage report.
 
+**Verify by rerunning, not by reading.** After making a fix, rebuild and rerun coverage (steps 2–4) to confirm it worked. Do not read generated test files, assembly output, or framework source to guess whether a fix succeeded — the coverage report is the ground truth. Similarly, if a hole might exist in multiple instructions, rerun coverage to check rather than reading files to deduce the answer.
+
 ## Workflow
 
 ```bash
@@ -18,7 +20,7 @@ timeout 120s make coverage
 python3 generators/testgen/scripts/custom/claude-scripts/coverage_summary.py --uncovered
 python3 generators/testgen/scripts/custom/claude-scripts/coverage_summary.py --bins <instruction>
 
-# 5. Fix scripts/templates based on report, repeat 2-4
+# 5. Fix scripts/templates based on report, then repeat 2-4 to verify (do NOT read files to check — rerun coverage)
 
 # 6. Restore when done
 python3 isolate_coverpoint.py --restore <Category>
