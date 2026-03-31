@@ -23,6 +23,26 @@
 - Narrowing ops: `get_vr_element_zero()` extracts at OUTPUT SEW. Use `ins.current.vs2_val[63:0]` for source.
 - `v0_element_1_active` inactive element bins: use `{0}` (inactive = mask bit 0), not `{1}`
 
+## RV32 SEW64 — ifdef Guard for Custom Bins
+
+RV32 cannot execute SEW=64 FP instructions, so VfCustom64 covergroups on RV32 will always show `cp_asm_count` and `std_vec` at 0%. This is expected and counts as 100% coverage. However, custom bins defined in templates **must** be guarded so they don't appear on RV32 SEW64. Use the `` `ifndef COVER_VFCUSTOM64 `` / `` `else `` / `` `ifdef XLEN64 `` pattern:
+
+```systemverilog
+`ifndef COVER_VFCUSTOM64
+    // bins for SEW16/SEW32 (always included)
+    my_coverpoint : coverpoint ... { bins ... }
+    cp_custom_foo : cross std_vec, my_coverpoint;
+`else
+    `ifdef XLEN64
+    // same bins, only included for RV64 SEW64
+    my_coverpoint : coverpoint ... { bins ... }
+    cp_custom_foo : cross std_vec, my_coverpoint;
+    `endif
+`endif
+```
+
+When you see custom bins at 0% in an RV32 VfCustom64 report, wrap them with this pattern. The residual `cp_asm_count`/`std_vec` at 0% on RV32 is acceptable — those are framework-generated and cannot be ifdefed from the template.
+
 ## RVVI fsflagsi CSR Alias Bug
 
 `fsflagsi` writes CSR 001 (fflags) but NOT CSR 003 (fcsr). Templates using `get_csr_val("fcsr", "fflags")` see stale values. **Fix**: add spacer tests with non-flag-setting inputs after flag-setting FP instructions to force CSR 003=0.

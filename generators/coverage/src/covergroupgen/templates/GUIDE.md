@@ -341,6 +341,31 @@ defines exactly one `COVER_VFCUSTOMxx` macro. Sibling macros are automatically `
 vector category with SEW variants is added, it is handled automatically. Do NOT manually add
 `define`/`undef` in templates — `generate.py` handles this.
 
+### RV32 SEW64 — Excluding Custom Bins
+
+RV32 cannot execute SEW=64 FP instructions, so no tests are generated for VfCustom64 on RV32.
+The covergroup shell (`cp_asm_count`, `std_vec`) will always be 0% on RV32 — this is **expected
+and acceptable**. However, custom bins in templates must be excluded so they don't create
+unfillable coverage holes. Use `ifndef COVER_VFCUSTOM64` / `else` / `ifdef XLEN64`:
+
+```systemverilog
+`ifndef COVER_VFCUSTOM64
+    // SEW16/SEW32 — always include
+    my_cp : coverpoint (...) { bins target = {1}; }
+    cp_custom_foo : cross std_vec, my_cp;
+`else
+    `ifdef XLEN64
+    // SEW64 — only on RV64
+    my_cp : coverpoint (...) { bins target = {1}; }
+    cp_custom_foo : cross std_vec, my_cp;
+    `endif
+`endif
+```
+
+When reviewing coverage and RV32 VfCustom64 shows custom bins at 0%, wrap them with this
+pattern. The residual `cp_asm_count`/`std_vec` at 0% is fine — they are framework-generated
+and cannot be guarded from the template.
+
 ### GPR Value Access
 
 ```systemverilog

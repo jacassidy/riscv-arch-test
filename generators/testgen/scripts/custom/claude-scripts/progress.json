@@ -49,10 +49,10 @@
       "timestamp": "2026-03-24 22:15:07"
     },
     "cp_custom_vfncvt_rup_overflow": {
-      "status": "partial",
-      "coverage": "0/14 bins covered by isolated parser output (see coverage_result json)",
-      "issue": "Isolated run reports all bins uncovered and no VfCustom64 report for this coverpoint; needs deeper template/script reconciliation.",
-      "timestamp": "2026-03-24 22:23:52"
+      "status": "completed",
+      "coverage": "100%",
+      "fix": "Template guarded with ifdef COVER_VFCUSTOM32 (only SEW=32 applies). Removed 6 non-float-to-float instructions from CSV (int-to-float can't overflow float32, float-to-int sets NV not OF). Only vfncvt.f.f.w and vfncvt.rod.f.f.w remain.",
+      "timestamp": "2026-03-30 21:30:00"
     },
     "cp_custom_vfp_register_state_mstatus_dirty": {
       "status": "blocked",
@@ -71,7 +71,10 @@
       "timestamp": "2026-03-30 12:00:00"
     },
     "cp_custom_vfp_flags_inactive_not_set": {
-      "status": "untested"
+      "status": "completed",
+      "coverage": "100%",
+      "fix": "Added ifdef XLEN64 guard around custom bins in template so RV32 SEW64 covergroup only has cp_asm_count and std_vec (expected 0% — no tests generated). RV64 all SEWs at 100%.",
+      "timestamp": "2026-03-30 14:00:00"
     },
     "cp_custom_FpRecSqrtEst_flag_edges": {
       "status": "partial",

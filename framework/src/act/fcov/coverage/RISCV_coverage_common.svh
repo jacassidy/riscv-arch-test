@@ -213,17 +213,8 @@
   `endif
 `endif
 
-`ifdef VFCUSTOM64_COVERAGE
-  `define ELEN64
-`else
-  `ifdef VFCUSTOM32_COVERAGE
-    `define ELEN32
-  `else
-    `ifdef VFCUSTOM16_COVERAGE
-      `define ELEN16
-    `endif
-  `endif
-`endif
+`define ELEN64
+
 
 // edge cases
 `ifdef VLEN64
