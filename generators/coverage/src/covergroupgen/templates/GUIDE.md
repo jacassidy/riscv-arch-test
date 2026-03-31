@@ -2,18 +2,11 @@
 
 All coverpoint templates live in this directory (`generators/coverage/templates/`). This guide covers file naming, format rules, copy-paste patterns, and the `ins` object API. This is the single source of truth — do not duplicate this content elsewhere.
 
-## File Types & Naming
+## File Naming
 
-### Type 1: Custom Coverpoints (Multiple per file)
-
-- **Filename**: `cp_custom_v<instruction_category>.sv` (e.g., `cp_custom_vwvv.sv`)
-- **Contains**: ALL custom coverpoints for that instruction category
-- Define helpers once at top, reuse them in crosses
-
-### Type 2: Non-Custom Coverpoints (One per file)
-
-- **Filename**: Matches coverpoint name (e.g., `cp_vstart_gt_vl.sv`)
-- **Contains**: Single coverpoint only — no crosses, no helpers
+- **One coverpoint per file** — every template file contains exactly one coverpoint
+- **Filename**: Matches the coverpoint name exactly (e.g., `cp_custom_vfp_flags_set.sv`, `cp_vstart_gt_vl.sv`)
+- Each file is completely independent — define any helpers it needs inline
 
 ## Template Format Rules
 
@@ -22,8 +15,9 @@ All coverpoint templates live in this directory (`generators/coverage/templates/
 3. **Footer**: `//// end cp_name` + slashes to ~80 chars
 4. **Indentation**: 4 spaces for coverpoints, 8 spaces for bins
 5. **No unused coverpoints**: Every helper MUST appear in at least one cross. Review after writing.
-6. **One blank line** at end of file
-7. **Comments**: Maximum 1 line. Readers have the CSV already.
+6. **No unfillable bins**: Every bin MUST be reachable by tests. If a bin can never be hit (e.g., the hardware cannot produce that state), delete it. A coverpoint is not complete until it reaches **100% coverage** — 0% bins are never acceptable. Either write a test that hits the bin or remove the bin.
+7. **One blank line** at end of file
+8. **Comments**: Maximum 1 line. Readers have the CSV already.
 
 ### Non-Custom Template
 

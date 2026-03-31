@@ -1,9 +1,0 @@
-{
-  "coverpoint": "maskLS",
-  "category": "Vls",
-  "status": "error",
-  "coverage_summary": {},
-  "build_log": "Column for 'maskLS' not found in /home/jacassidy/cvw/addins/riscv-arch-test-cvw/working-testplans/duplicates/VlsCustom-save.csv. Available custom columns: ['cp_custom_vwholeRegLS_vill', 'cp_custom_vwholeRegLS_lmul', 'cp_custom_maskLS', 'cp_custom_ls_indexed', 'cp_custom_ffLS_update_vl', 'cp_custom_indexed_emul_data_only', 'cp_custom_masked_v0_operand']",
-  "coverage_log": "",
-  "duration_s": 0.0
-}

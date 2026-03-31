@@ -170,9 +170,21 @@ def gen_spacer(test, sew):
     else:
         spacer_one = triggers["ONE"]
         spacer_label = f"custom_flag_one_sew{sew}"
-    _gen_test(test, sew,
-              spacer_label, spacer_one,
-              f"cp_custom_vfp_flags_set (clean spacer, {test})")
+    spacer_label2 = f"custom_flag_spacer_one2_sew{sew}"
+    if test.endswith(".vv") or test.endswith(".vs"):
+        _gen_test_two_operands(test, sew,
+                               spacer_label, spacer_one,
+                               spacer_label2, spacer_one,
+                               f"cp_custom_vfp_flags_set (clean spacer, {test})")
+    elif test.endswith(".vf") or test.endswith(".wf"):
+        _gen_test(test, sew,
+                  spacer_label, spacer_one,
+                  f"cp_custom_vfp_flags_set (clean spacer, {test})",
+                  fs1_val=spacer_one)
+    else:
+        _gen_test(test, sew,
+                  spacer_label, spacer_one,
+                  f"cp_custom_vfp_flags_set (clean spacer, {test})")
 
 
 def gen_nv(test, sew):
@@ -183,15 +195,34 @@ def gen_nv(test, sew):
     if test in WIDE_SOURCE_INSTRUCTIONS and test not in NARROWING_INT_TO_FLOAT:
         nv_val = FLAG_TRIGGERS.get(sew * 2, {}).get("NV", triggers["NV"])
         nv_label = f"custom_flag_wide_nv_sew{sew}"
+        nv_label2 = f"custom_flag_wide_nv2_sew{sew}"
     else:
         nv_val = triggers["NV"]
         nv_label = f"custom_flag_nv_sew{sew}"
-    _gen_test(test, sew,
-              nv_label, nv_val,
-              f"cp_custom_vfp_flags_set (NV via sNaN, {test})")
-    _gen_test(test, sew,
-              nv_label, nv_val,
-              f"cp_custom_vfp_flags_set (NV1 via sNaN again, {test})")
+        nv_label2 = f"custom_flag_nv2_sew{sew}"
+    if test.endswith(".vv") or test.endswith(".vs"):
+        _gen_test_two_operands(test, sew,
+                               nv_label, nv_val, nv_label2, nv_val,
+                               f"cp_custom_vfp_flags_set (NV via sNaN, {test})")
+        _gen_test_two_operands(test, sew,
+                               nv_label, nv_val, nv_label2, nv_val,
+                               f"cp_custom_vfp_flags_set (NV1 via sNaN again, {test})")
+    elif test.endswith(".vf") or test.endswith(".wf"):
+        _gen_test(test, sew,
+                  nv_label, nv_val,
+                  f"cp_custom_vfp_flags_set (NV via sNaN, {test})",
+                  fs1_val=nv_val)
+        _gen_test(test, sew,
+                  nv_label, nv_val,
+                  f"cp_custom_vfp_flags_set (NV1 via sNaN again, {test})",
+                  fs1_val=nv_val)
+    else:
+        _gen_test(test, sew,
+                  nv_label, nv_val,
+                  f"cp_custom_vfp_flags_set (NV via sNaN, {test})")
+        _gen_test(test, sew,
+                  nv_label, nv_val,
+                  f"cp_custom_vfp_flags_set (NV1 via sNaN again, {test})")
 
 
 def gen_nx(test, sew):

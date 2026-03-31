@@ -89,6 +89,10 @@ Mask values: `"ones"`, `"zeroes"`, `"vlmaxm1_ones"`, `"vlmaxd2p1_ones"`, `"cp_ma
 
 Call after each `writeTest`: `incrementBasetestCount()` + `vsAddressCount()` (base suite) or `incrementLengthtestCount()` + `vsAddressCount("length")` (length suite).
 
+## Coverage Completion Rule
+
+Every coverpoint must reach **100% coverage**. If a bin stays at 0% after writing tests, the bin must be **removed from the template** — not left as "expected to be empty." There is no such thing as an acceptable 0% bin. Either hit it or delete it.
+
 ## Two Core Patterns
 
 ### Base suite — register/value sweep

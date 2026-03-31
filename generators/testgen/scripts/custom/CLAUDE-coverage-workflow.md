@@ -43,6 +43,15 @@ python3 isolate_coverpoint.py --restore <Category>
 
 Manual EXTENSIONS if needed: `VfCustom16,VfCustom32,VfCustom64` or `VlsCustom8,VlsCustom16,VlsCustom32,VlsCustom64`
 
+## Coverage Completion Requirement
+
+**A coverpoint is complete ONLY when it reaches 100% coverage.** Every bin defined in a template must be hit. There are no exceptions — a bin at 0% is never acceptable.
+
+If a bin cannot be hit (e.g., the hardware will never produce that state), the bin must be **removed from the template**. Do not leave unfillable bins in place and call the coverpoint "done." The goal is 100% across all bins, which means either:
+
+1. Write tests that hit the bin, **or**
+2. Delete the bin from the template because it represents an unreachable state.
+
 ## Reading Coverage Reports
 
 Use `coverage_summary.py` — not grep or file reads:
