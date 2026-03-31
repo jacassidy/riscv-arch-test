@@ -38,7 +38,7 @@ NAN_VALUES = {
 
 @register("cp_custom_vfp_NaN_input")
 def make(test, sew):
-    if sew > common.xlen:
+    if sew > common.flen:
         return
 
     if test not in vfloattypes:

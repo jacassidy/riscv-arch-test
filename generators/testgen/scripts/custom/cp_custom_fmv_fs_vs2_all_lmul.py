@@ -25,7 +25,7 @@ ALL_LMULS = [0.125, 0.25, 0.5, 1, 2, 4, 8]
 
 @register("cp_custom_fmv_fs_vs2_all_lmul")
 def make(test, sew):
-    if sew > common.xlen:
+    if sew > common.flen:
         return
 
     # Filter: LMUL must be >= SEW/ELEN for valid vtype (fractional LMUL only supports SEW <= LMUL*ELEN)

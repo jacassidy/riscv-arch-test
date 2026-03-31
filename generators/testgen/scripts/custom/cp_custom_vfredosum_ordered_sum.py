@@ -38,7 +38,7 @@ NEG_MAX_NORM = {
 
 @register("cp_custom_vfredosum_ordered_sum")
 def make(test, sew):
-    if sew > common.xlen:
+    if sew > common.flen:
         return
 
     max_val = MAX_NORM.get(sew)

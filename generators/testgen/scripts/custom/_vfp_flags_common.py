@@ -145,7 +145,7 @@ def _gen_test_two_operands(test, sew, label1, val1, label2, val2, description):
 
 def should_skip(test, sew):
     """Return True if this instruction/sew combo should be skipped for flags."""
-    if sew > common.xlen:
+    if sew > common.flen:
         return True
     if test not in vfloattypes:
         return True

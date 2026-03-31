@@ -50,7 +50,7 @@ def _emit(test, sew, label, desc):
 
 @register("cp_custom_FpRecSqrtEst_flag_edges")
 def make(test, sew):
-    if sew > common.xlen:
+    if sew > common.flen:
         return
 
     for label, desc, sets_flags in EDGE_CASES:

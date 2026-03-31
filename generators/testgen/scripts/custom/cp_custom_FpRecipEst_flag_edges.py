@@ -101,7 +101,7 @@ def _emit_test(test, sew, val, desc):
 
 @register("cp_custom_FpRecipEst_flag_edges")
 def make(test, sew):
-    if sew > common.xlen:
+    if sew > common.flen:
         return
 
     spacer_val = _SPACER[sew]

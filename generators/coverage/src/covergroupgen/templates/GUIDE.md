@@ -15,7 +15,7 @@ All coverpoint templates live in this directory (`generators/coverage/templates/
 3. **Footer**: `//// end cp_name` + slashes to ~80 chars
 4. **Indentation**: 4 spaces for coverpoints, 8 spaces for bins
 5. **No unused coverpoints**: Every helper MUST appear in at least one cross. Review after writing.
-6. **No unfillable bins**: Every bin MUST be reachable by tests. If a bin can never be hit (e.g., the hardware cannot produce that state), delete it. A coverpoint is not complete until it reaches **100% coverage** — 0% bins are never acceptable. Either write a test that hits the bin or remove the bin.
+6. **No unfillable custom bins**: Every custom bin MUST be reachable by tests. If a bin can never be hit, delete it. Custom bins must reach **100% coverage**. Residual 0% on framework-generated bins (not defined in the template) is acceptable — those are filled by the full suite.
 7. **One blank line** at end of file
 8. **Comments**: Maximum 1 line. Readers have the CSV already.
 
@@ -341,12 +341,13 @@ defines exactly one `COVER_VFCUSTOMxx` macro. Sibling macros are automatically `
 vector category with SEW variants is added, it is handled automatically. Do NOT manually add
 `define`/`undef` in templates — `generate.py` handles this.
 
-### RV32 SEW64 — Excluding Custom Bins
+### SEW64 FP — Excluding Custom Bins
 
-RV32 cannot execute SEW=64 FP instructions, so no tests are generated for VfCustom64 on RV32.
-The covergroup shell (`cp_asm_count`, `std_vec`) will always be 0% on RV32 — this is **expected
-and acceptable**. However, custom bins in templates must be excluded so they don't create
-unfillable coverage holes. Use `ifndef COVER_VFCUSTOM64` / `else` / `ifdef XLEN64`:
+SEW=64 FP instructions require FLEN ≥ 64 (D extension). Systems without D extension cannot
+execute SEW=64 FP instructions, so the covergroup shell (`cp_asm_count`, `std_vec`) will
+always be 0% — this is **expected and acceptable**. However, custom bins in templates must
+be excluded so they don't create unfillable coverage holes. Use `ifndef COVER_VFCUSTOM64` /
+`else` / `ifdef FLEN64`:
 
 ```systemverilog
 `ifndef COVER_VFCUSTOM64
@@ -354,17 +355,17 @@ unfillable coverage holes. Use `ifndef COVER_VFCUSTOM64` / `else` / `ifdef XLEN6
     my_cp : coverpoint (...) { bins target = {1}; }
     cp_custom_foo : cross std_vec, my_cp;
 `else
-    `ifdef XLEN64
-    // SEW64 — only on RV64
+    `ifdef FLEN64
+    // SEW64 — only when FLEN >= 64 (D extension)
     my_cp : coverpoint (...) { bins target = {1}; }
     cp_custom_foo : cross std_vec, my_cp;
     `endif
 `endif
 ```
 
-When reviewing coverage and RV32 VfCustom64 shows custom bins at 0%, wrap them with this
-pattern. The residual `cp_asm_count`/`std_vec` at 0% is fine — they are framework-generated
-and cannot be guarded from the template.
+When reviewing coverage and VfCustom64 shows custom bins at 0% on a system without D
+extension, wrap them with this pattern. The residual `cp_asm_count`/`std_vec` at 0% is
+fine — they are framework-generated and cannot be guarded from the template.
 
 ### GPR Value Access
 

@@ -77,10 +77,10 @@
       "timestamp": "2026-03-30 14:00:00"
     },
     "cp_custom_FpRecSqrtEst_flag_edges": {
-      "status": "partial",
-      "coverage": "0% in current isolated run",
-      "issue": "vfrsqrt7 flag-edge bins all uncovered in isolated run.",
-      "timestamp": "2026-03-24 22:23:52"
+      "status": "completed",
+      "coverage": "100%",
+      "fix": "Already working on RV64. Added ifdef XLEN64 guard around all custom coverpoints (fp_flags_clear, vs2_0_reciprocal_sqrt_edges, cross) for COVER_VFCUSTOM64 so RV32 VfCustom64 only has residual cp_asm_count and std_vec.",
+      "timestamp": "2026-03-31 12:00:00"
     },
     "cp_custom_FpRecipEst_flag_edges": {
       "status": "partial",

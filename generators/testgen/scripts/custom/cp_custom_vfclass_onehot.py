@@ -74,7 +74,7 @@ CLASSIFY_INPUTS = {
 
 @register("cp_custom_vfclass_onehot")
 def make(test, sew):
-    if sew > common.xlen:
+    if sew > common.flen:
         return
 
     inputs = CLASSIFY_INPUTS.get(sew, [])

@@ -47,12 +47,11 @@ Manual EXTENSIONS if needed: `VfCustom16,VfCustom32,VfCustom64` or `VlsCustom8,V
 
 ## Coverage Completion Requirement
 
-**A coverpoint is complete ONLY when it reaches 100% coverage.** Every bin defined in a template must be hit. There are no exceptions — a bin at 0% is never acceptable.
+**A coverpoint is complete ONLY when its custom bins reach 100% coverage.** Every custom bin defined in a template must be hit.
 
-If a bin cannot be hit (e.g., the hardware will never produce that state), the bin must be **removed from the template**. Do not leave unfillable bins in place and call the coverpoint "done." The goal is 100% across all bins, which means either:
+If a custom bin cannot be hit, **remove it from the template**. The goal is 100% across all custom bins: either write a test that hits the bin or delete it.
 
-1. Write tests that hit the bin, **or**
-2. Delete the bin from the template because it represents an unreachable state.
+**Residual bins at 0% are acceptable.** Bins not defined in the template (framework-generated bins like `cp_asm_count`, `std_vec`, or precondition crosses) will be filled when the full suite runs. Do not investigate or fix these during isolated coverpoint work.
 
 ## Reading Coverage Reports
 

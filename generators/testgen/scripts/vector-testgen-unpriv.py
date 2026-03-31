@@ -1226,7 +1226,11 @@ if __name__ == '__main__':
         else:
           sew = 8
 
-        setFlen(32)
+        # Set flen based on extension: VfCustom/Vf tests need flen >= sew for FP operations
+        if extension.startswith(("VfCustom", "Vf")) and sew > 32:
+          setFlen(sew)
+        else:
+          setFlen(32)
 
         legalvlmuls = getLegalVlmul(maxELEN, minSEW_MIN, sew)
 

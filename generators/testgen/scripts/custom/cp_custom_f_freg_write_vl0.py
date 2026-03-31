@@ -22,8 +22,8 @@ from vector_testgen_common import (
 
 @register("cp_custom_vfp_state")
 def make(test, sew):
-    # Skip SEW=64 on RV32: framework generates sd/ld for state saving which need zilsd
-    if sew > common.xlen:
+    # Skip SEW > FLEN: V spec Section 3.4 requires SEW <= FLEN for FP instructions
+    if sew > common.flen:
         return
 
     # Test 1: vl=0 — per spec, vfmv.f.s writes fd even when vl=0.

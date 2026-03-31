@@ -39,7 +39,7 @@ VS1_REG = 8
 
 @register("cp_custom_vfredosum_NAN_vl0")
 def make(test, sew):
-    if sew > common.xlen:
+    if sew > common.flen:
         return
 
     # For widening reductions (vfwredosum), vs1 is read at 2*SEW

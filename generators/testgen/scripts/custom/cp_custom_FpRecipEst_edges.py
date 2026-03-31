@@ -42,7 +42,7 @@ def _make_value(sew, sig_7bit):
 
 @register("cp_custom_FpRecipEst_edges")
 def make(test, sew):
-    if sew > common.xlen:
+    if sew > common.flen:
         return
 
     for i in range(128):

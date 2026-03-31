@@ -91,7 +91,7 @@ Call after each `writeTest`: `incrementBasetestCount()` + `vsAddressCount()` (ba
 
 ## Coverage Completion Rule
 
-Every coverpoint must reach **100% coverage**. If a bin stays at 0% after writing tests, the bin must be **removed from the template** — not left as "expected to be empty." There is no such thing as an acceptable 0% bin. Either hit it or delete it.
+Every custom bin must reach **100% coverage**. If a custom bin stays at 0% after writing tests, it must be **removed from the template**. Residual 0% on framework-generated bins (not defined in the template) is acceptable — those are filled by the full suite.
 
 ## Two Core Patterns
 
