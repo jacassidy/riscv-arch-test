@@ -2,11 +2,10 @@
 """Custom coverpoint: cp_custom_fmv_sf_vd_all_lmul
 
 Confirm vfmv.s.f ignores LMUL for destination register.
-Template cross: std_vec × vd_all_regs × vtype_all_lmul
+Template: two independent crosses — std_vec × vd_all_regs, std_vec × vtype_all_lmul.
 
-Strategy: 32 vd values at LMUL=1 (covers all vd_all_regs bins) +
-1 vd per additional LMUL (covers LMUL bins). Total ~38 tests.
-Full cross coverage (32×7=224 bins) requires RTL simulation.
+Strategy: 32 vd values at LMUL=1 (covers vd_all_regs) +
+1 test per additional LMUL (covers vtype_all_lmul). Total ~38 tests.
 """
 
 from coverpoint_registry import register
@@ -19,20 +18,18 @@ from vector_testgen_common import (
     vsAddressCount,
 )
 
-# All LMUL values including fractional
-ALL_LMULS = [0.125, 0.25, 0.5, 1, 2, 4, 8]
+ALL_LMULS: list[float] = [0.125, 0.25, 0.5, 1, 2, 4, 8]
 
 
 @register("cp_custom_fmv_sf_vd_all_lmul")
-def make(test, sew):
+def make(test: str, sew: int) -> None:
     if sew > common.flen:
         return
 
-    # Filter: LMUL must be >= SEW/ELEN for valid vtype (fractional LMUL only supports SEW <= LMUL*ELEN)
     valid_lmuls = [l for l in ALL_LMULS if l >= sew / common.maxELEN]
 
     for lmul in valid_lmuls:
-        # LMUL=1: all 32 regs. Others: just vd=0 to hit the LMUL bin.
+        # LMUL=1: all 32 regs (covers vd_all_regs cross). Others: just vd=0 (covers LMUL cross).
         vd_values = range(32) if lmul == 1 else [0]
         for vd in vd_values:
             description = f"cp_custom_fmv_sf_vd_all_lmul (vd=v{vd}, lmul={lmul})"

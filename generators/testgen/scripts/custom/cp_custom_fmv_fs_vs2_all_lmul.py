@@ -2,11 +2,10 @@
 """Custom coverpoint: cp_custom_fmv_fs_vs2_all_lmul
 
 Confirm vfmv.f.s ignores LMUL for source register.
-Template cross: std_vec × vs2_all_regs × vtype_all_lmul
+Template: two independent crosses — std_vec × vs2_all_regs, std_vec × vtype_all_lmul.
 
-Strategy: 32 vs2 values at LMUL=1 (covers all vs2_all_regs bins) +
-1 vs2 per additional LMUL (covers LMUL bins). Total ~38 tests.
-Full cross coverage (32×7=224 bins) requires RTL simulation.
+Strategy: 32 vs2 values at LMUL=1 (covers vs2_all_regs) +
+1 vs2 per additional LMUL (covers vtype_all_lmul). Total ~38 tests.
 """
 
 from coverpoint_registry import register
@@ -19,12 +18,11 @@ from vector_testgen_common import (
     vsAddressCount,
 )
 
-# All LMUL values including fractional
-ALL_LMULS = [0.125, 0.25, 0.5, 1, 2, 4, 8]
+ALL_LMULS: list[float] = [0.125, 0.25, 0.5, 1, 2, 4, 8]
 
 
 @register("cp_custom_fmv_fs_vs2_all_lmul")
-def make(test, sew):
+def make(test: str, sew: int) -> None:
     if sew > common.flen:
         return
 

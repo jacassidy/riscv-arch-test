@@ -16,7 +16,7 @@ Per-coverpoint notes for completed/blocked work. Reference only — don't read u
 | cp_custom_vfredosum_NAN_vl0       | 55.55%       | Cross 0%. Framework vl=0 limitation + wrong bin values. See coverage_issues/.                                       |
 | cp_custom_vfp_flags               | 100%         | Root cause for rv32+SEW64 was sew>xlen skip                                                                         |
 | cp_custom_vfp_flags_nv_nx         | 100%         | Fixed: back-to-back NX tests + .wf scalar width correction                                                          |
-| cp_custom_fmv_sf_vd_all_lmul      | 85.46%       | Cross needs 128 bins, sail limited to ~35 tests. Full coverage needs RTL.                                           |
-| cp_custom_fmv_fs_vs2_all_lmul     | 85.46%       | Same as above                                                                                                       |
+| cp_custom_fmv_sf_vd_all_lmul      | In progress  | Cross needs all 32 vd × each LMUL. Previous run had hang on VfCustom64 (likely illegal instruction trap loop).      |
+| cp_custom_fmv_fs_vs2_all_lmul     | In progress  | Same cross structure as fmv_sf.                                                                                     |
 | cp_custom_vfp_NaN_input           | In progress  | 101 instructions, ~10 hours total                                                                                   |
-| All VlsCustom                     | Blocked      | Sail timeout — intended for RTL sim                                                                                 |
+| All VlsCustom                     | Untested     | Not yet attempted for this coverage push                                                                            |

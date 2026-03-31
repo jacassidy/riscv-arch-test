@@ -13,7 +13,7 @@ python3 isolate_coverpoint.py <Category> <cp_column_name>
 # 2. Build (should finish <30s for one coverpoint; if not, isolation failed)
 make clean && make vector-tests
 
-# 3. Coverage
+# 3. Coverage (isolated coverpoints should finish FAST — under 60s typically)
 timeout 120s make coverage
 
 # 4. Read results
@@ -25,6 +25,21 @@ python3 generators/testgen/scripts/custom/claude-scripts/coverage_summary.py --b
 # 6. Restore when done
 python3 isolate_coverpoint.py --restore <Category>
 ```
+
+## Hang Detection
+
+Sail can run an **indefinite** number of tests — there is NO test count limit. If `make coverage` hangs
+(build step stuck on a `.sig` file for >60s for an isolated coverpoint), a test is generating an illegal
+instruction that causes an infinite trap loop. This is always a script bug, never a sail limitation.
+
+**How to identify a hang**: The `make coverage` output shows the oldest running task, e.g.:
+
+```
+oldest: .../work/sail-rv32-max/build/rv32i/VfCustom64/VfCustom64-vfmv.s.f.sig
+```
+
+**How to fix**: Follow `guides/debugging-hangs.md` — find the ELF, run with `--inst-limit` and `--trace-instr`,
+identify the illegal instruction, fix the script.
 
 ## What to read and when
 

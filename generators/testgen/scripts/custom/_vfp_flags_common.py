@@ -259,12 +259,45 @@ def gen_nx(test, sew):
                               f"custom_flag_three_sew{sew}", three[sew],
                               f"cp_custom_vfp_flags_set (NX1 via 1/3 again, {test})")
     elif test == "vfrdiv.vf":
+        # vfrdiv.vf: vd = f[rs1] / vs2[i]. With vs2=3 and fs1=1, we get 1/3 (NX).
         _gen_test(test, sew,
                   f"custom_flag_three_sew{sew}", three[sew],
-                  f"cp_custom_vfp_flags_set (NX via x/3, {test})")
+                  f"cp_custom_vfp_flags_set (NX via 1/3, {test})",
+                  fs1_val=triggers["ONE"])
         _gen_test(test, sew,
                   f"custom_flag_three_sew{sew}", three[sew],
-                  f"cp_custom_vfp_flags_set (NX1 via x/3 again, {test})")
+                  f"cp_custom_vfp_flags_set (NX1 via 1/3 again, {test})",
+                  fs1_val=triggers["ONE"])
+    elif test == "vfdiv.vf":
+        # vfdiv.vf: vd = vs2[i] / f[rs1]. With vs2=1 and fs1=3, we get 1/3 (NX).
+        _gen_test(test, sew,
+                  f"custom_flag_one_sew{sew}", triggers["ONE"],
+                  f"cp_custom_vfp_flags_set (NX via 1/3, {test})",
+                  fs1_val=three[sew])
+        _gen_test(test, sew,
+                  f"custom_flag_one_sew{sew}", triggers["ONE"],
+                  f"cp_custom_vfp_flags_set (NX1 via 1/3 again, {test})",
+                  fs1_val=three[sew])
+    elif test == "vfsub.vf":
+        # vfsub.vf: vd = vs2[i] - f[rs1]. Use vs2=MAX, fs1=1.0 → MAX-1 is inexact → NX.
+        _gen_test(test, sew,
+                  f"custom_flag_of_sew{sew}", triggers["OF"],
+                  f"cp_custom_vfp_flags_set (NX via max-1, {test})",
+                  fs1_val=triggers["ONE"])
+        _gen_test(test, sew,
+                  f"custom_flag_of_sew{sew}", triggers["OF"],
+                  f"cp_custom_vfp_flags_set (NX1 via max-1 again, {test})",
+                  fs1_val=triggers["ONE"])
+    elif test == "vfrsub.vf":
+        # vfrsub.vf: vd = f[rs1] - vs2[i]. Use vs2=1.0, fs1=MAX → MAX-1 is inexact → NX.
+        _gen_test(test, sew,
+                  f"custom_flag_one_sew{sew}", triggers["ONE"],
+                  f"cp_custom_vfp_flags_set (NX via max-1, {test})",
+                  fs1_val=triggers["OF"])
+        _gen_test(test, sew,
+                  f"custom_flag_one_sew{sew}", triggers["ONE"],
+                  f"cp_custom_vfp_flags_set (NX1 via max-1 again, {test})",
+                  fs1_val=triggers["OF"])
     elif test in {"vfwadd.wv", "vfwsub.wv"}:
         wide_triggers = FLAG_TRIGGERS.get(sew * 2, {})
         vs2_label = f"custom_flag_wide_of_sew{sew}"
@@ -304,6 +337,16 @@ def gen_nx(test, sew):
             f"custom_flag_of_sew{sew}", triggers["OF"],
             f"custom_flag_of2_sew{sew}", triggers["OF"],
             f"cp_custom_vfp_flags_set (NX forced 2, {test})")
+    elif test.endswith(".vs"):
+        # Reductions: vs1[0] is accumulator, vs2 is vector. MAX+MAX → +Inf (OF+NX)
+        _gen_test_two_operands(test, sew,
+                               f"custom_flag_of_sew{sew}", triggers["OF"],
+                               f"custom_flag_of2_sew{sew}", triggers["OF"],
+                               f"cp_custom_vfp_flags_set (NX via overflow sum, {test})")
+        _gen_test_two_operands(test, sew,
+                               f"custom_flag_of_sew{sew}", triggers["OF"],
+                               f"custom_flag_of2_sew{sew}", triggers["OF"],
+                               f"cp_custom_vfp_flags_set (NX1 via overflow sum again, {test})")
     else:
         if test in NARROWING_INT_TO_FLOAT:
             nx_label = f"custom_flag_int_nx_sew{sew}"
@@ -321,15 +364,20 @@ def gen_nx(test, sew):
             nx2_val = triggers.get("NX2", nx_val)
             nx2_label = f"custom_flag_nx2_sew{sew}"
         nx_tries = 8 if test in WIDE_SOURCE_INSTRUCTIONS else 4
+        vf_extra: dict[str, int] = {}
+        if test.endswith(".vf") or test.endswith(".wf"):
+            vf_extra = {"fs1_val": nx_val}
         for i in range(nx_tries):
             if i % 2 == 0:
                 _gen_test(test, sew,
                           nx_label, nx_val,
-                          f"cp_custom_vfp_flags_set (NX try {i+1}, {test})")
+                          f"cp_custom_vfp_flags_set (NX try {i+1}, {test})",
+                          **vf_extra)
             else:
                 _gen_test(test, sew,
                           nx2_label, nx2_val,
-                          f"cp_custom_vfp_flags_set (NX try {i+1}, {test})")
+                          f"cp_custom_vfp_flags_set (NX try {i+1}, {test})",
+                          **vf_extra)
 
 
 def gen_dz(test, sew):
@@ -360,6 +408,16 @@ def gen_dz(test, sew):
         _gen_test(test, sew,
                   f"custom_flag_dz_sew{sew}", triggers["DZ"],
                   f"cp_custom_vfp_flags_set (DZ1 via zero vs2 again, {test})")
+    elif test == "vfdiv.vf":
+        # vfdiv.vf: vd = vs2 / f[rs1], DZ when f[rs1] = 0
+        _gen_test(test, sew,
+                  f"custom_flag_one_sew{sew}", triggers["ONE"],
+                  f"cp_custom_vfp_flags_set (DZ via zero scalar divisor, {test})",
+                  fs1_val=triggers["DZ"])
+        _gen_test(test, sew,
+                  f"custom_flag_one_sew{sew}", triggers["ONE"],
+                  f"cp_custom_vfp_flags_set (DZ1 via zero scalar divisor again, {test})",
+                  fs1_val=triggers["DZ"])
 
 
 def gen_of(test, sew):
@@ -379,10 +437,12 @@ def gen_of(test, sew):
     else:
         _gen_test(test, sew,
                   f"custom_flag_of_sew{sew}", triggers["OF"],
-                  f"cp_custom_vfp_flags_set (OF via max normal, {test})")
+                  f"cp_custom_vfp_flags_set (OF via max normal, {test})",
+                  fs1_val=triggers["OF"])
         _gen_test(test, sew,
                   f"custom_flag_of_sew{sew}", triggers["OF"],
-                  f"cp_custom_vfp_flags_set (OF1 via max normal again, {test})")
+                  f"cp_custom_vfp_flags_set (OF1 via max normal again, {test})",
+                  fs1_val=triggers["OF"])
 
 
 def gen_uf(test, sew):
@@ -402,10 +462,12 @@ def gen_uf(test, sew):
     else:
         _gen_test(test, sew,
                   f"custom_flag_uf_sew{sew}", triggers["UF"],
-                  f"cp_custom_vfp_flags_set (UF via tiny, {test})")
+                  f"cp_custom_vfp_flags_set (UF via tiny, {test})",
+                  fs1_val=triggers["UF"])
         _gen_test(test, sew,
                   f"custom_flag_uf_sew{sew}", triggers["UF"],
-                  f"cp_custom_vfp_flags_set (UF1 via tiny again, {test})")
+                  f"cp_custom_vfp_flags_set (UF1 via tiny again, {test})",
+                  fs1_val=triggers["UF"])
 
 
 def gen_inactive(test, sew):

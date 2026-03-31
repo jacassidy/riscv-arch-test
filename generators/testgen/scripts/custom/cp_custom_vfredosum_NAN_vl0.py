@@ -64,7 +64,7 @@ def make(test, sew):
     vsAddressCount()
 
     # Test 2: Run with vl=0 — vs1=v8 retains qNaN from test 1
-    # The framework tries to load data via vle but vl=0 loads nothing,
+    # The framework generates vle loads with vl=0 (loading nothing),
     # so v8 keeps its qNaN value. Coverage cross fires on this instruction.
     description = f"cp_custom_vfredosum_NAN_vl0 ({test}, vl=0, vs1[0]=qNaN retained)"
     data = randomizeVectorInstructionData(

@@ -27,7 +27,7 @@
                 bins posQNaN = {1};
         }
 
-        fp_flags_clear : coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "fcsr", "fflags") {
+        fp_flags_clear : coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "fflags", "fflags") {
                 bins clear = {0};
         }
 
@@ -54,7 +54,7 @@
                 bins posQNaN = {1};
         }
 
-        fp_flags_clear : coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "fcsr", "fflags") {
+        fp_flags_clear : coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "fflags", "fflags") {
                 bins clear = {0};
         }
 

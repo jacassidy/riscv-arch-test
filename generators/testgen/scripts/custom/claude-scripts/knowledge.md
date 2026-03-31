@@ -24,7 +24,7 @@
 - **NEVER check `ins.current.insn == "some_string"`** — `insn` is the raw 32-bit encoding. The framework already routes per-instruction.
 - Use `ins.current.vs2_val` (register contents), NOT `ins.current.vs2` (register name string)
 - CSR sampling: `get_csr_val(..., "fcsr", "frm")` not `"frm", "frm"` (returns 0)
-- CSR sampling: `get_csr_val(..., "fcsr", "fflags")` not `"fflags", "fflags"`
+- CSR sampling: For fflags **after** an FP instruction, `"fcsr", "fflags"` works (FP instructions write both CSR 001 and 003). For fflags **before** an instruction (SAMPLE_BEFORE), use `"fflags", "fflags"` because `fsflagsi` only writes CSR 001, leaving CSR 003 (fcsr) stale.
 - Narrowing ops: `get_vr_element_zero()` extracts at OUTPUT SEW. Use `ins.current.vs2_val[63:0]` for source.
 - `v0_element_1_active` inactive element bins: use `{0}` (inactive = mask bit 0), not `{1}`
 
@@ -82,8 +82,14 @@ vfrsqrt7/vfrec7 bin coverage requires both **even and odd exponents** to cover a
 ## Framework Limitations
 
 - `writeTest(vl=0)` sets VL=0 before vector loads — impossible to pre-load data for VL=0 tests
-- VlsCustom: all files ~4300 lines, sail times out even at 600s. Intended for RTL sim only.
-- Cross bin saturation: sail handles ~35 tests/file. Scripts optimized for ~85% on large crosses, full coverage deferred to RTL.
+
+## Hang Detection
+
+Sail can run an **indefinite** number of tests. If a build is hanging, it's a test bug (illegal instruction → trap loop), NOT a sail limitation. A single isolated coverpoint should build in <30s. If it takes longer:
+
+1. Kill the build
+2. Note the hanging file from `make coverage` output (e.g. `oldest: .../VfCustom64-vfmv.s.f.sig`)
+3. Follow the debugging guide in `guides/debugging-hangs.md` to trace the hang and fix the script
 
 ## Completed Coverpoint Outcomes
 
