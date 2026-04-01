@@ -163,7 +163,7 @@ def gen_compile_targets(
         }"
         "# Generate signature file\n"
         f"{sig_file}: {sig_elf}\n"
-        f"\ttimeout 600 {config.ref_model_exe} {'--trace-all' if debug else ''} \\\n"
+        f"\ttimeout 1800 {config.ref_model_exe} {'--trace-all' if debug else ''} \\\n"
         f"{f'\t\t--trace-output {sig_trace_file} \\\n' if debug else ''}"
         f"\t\t--config {sail_config_path} \\\n"
         f"\t\t{ref_model_sig_flags} \\\n"

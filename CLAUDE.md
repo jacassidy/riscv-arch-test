@@ -7,6 +7,7 @@
 - Read the guide for a task before reading raw code.
 - ONLY modify coverpoint templates and `cp_custom_*.py` scripts unless the user explicitly names another file.
 - **NEVER use Agent with `subagent_type=Explore`** unless the user explicitly gives permission. Direct Grep/Glob/Read is fine.
+- **Context refresh between problems**: When switching from one problem/coverpoint to another, STOP. Re-read the relevant guide files from the Task Routing table below. Then summarize your current context: what was just completed, what you're starting next, and what the current state is. This is where context drift happens — prevent it by resetting at every transition.
 
 ## Task Routing
 

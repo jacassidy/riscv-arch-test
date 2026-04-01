@@ -174,6 +174,12 @@ if __name__ == "__main__":
     raise RuntimeError("This file is not meant to be run directly.")
 
 tab_count = 0
+_current_coverpoint = "custom"
+_inst_ptr_counts = {}
+
+def setCurrentCoverpoint(name):
+    global _current_coverpoint
+    _current_coverpoint = name
 
 def writeLine(argument: str, comment = ""):
     raise NotImplementedError("This function must be overridden by the importing file.")
@@ -190,6 +196,7 @@ def newInstruction():
   base_suite_test_count     = 0
   length_suite_test_count   = 0
   sigupd_count              = 0
+  _inst_ptr_counts.clear()
 
   # reset testcase strings for the new instruction file
   reset_testcase_strings()
@@ -1245,7 +1252,10 @@ def insertTemplate(test, signatureWords, name, sew=0, vdsew=0, test_data=""):
       ext_parts_no_I = [ext for ext in ext_parts if ext != "I"]
       if 'V' in ext_parts_no_I:
         if (test in vfloattypes):
-          ext_parts_no_I = ['F'] + ['Zfhmin'] + ext_parts_no_I
+          fp_exts = ['F'] + ['Zfhmin']
+          if flen > 32:
+            fp_exts = ['F', 'D', 'Zfhmin']
+          ext_parts_no_I = fp_exts + ext_parts_no_I
         ext_parts_no_I = ['M'] + ext_parts_no_I
       ext_str = "I"
       for ext in ext_parts_no_I:
@@ -1275,7 +1285,7 @@ def insertTemplate(test, signatureWords, name, sew=0, vdsew=0, test_data=""):
 def writeSIGUPD(inst_ptr, rd):
     global sigupd_count  # Allow modification of global variable
     sigupd_count += 1    # Increment counter on each call
-    str_ptr = "test_" + str(testcase_count)
+    str_ptr = "test_" + str(testcase_count) + "_str"
     linkReg = 5
     linkOptions = [5, 8, 13]
     while linkReg == sigReg or linkReg - 1 == sigReg or linkReg == rd or linkReg - 1 == rd:
@@ -1356,7 +1366,7 @@ def writeSIGUPD_V(inst_ptr, vd, sew, avl=1, sig_lmul = None, load_testline = Non
     else:
       sigupd_count += avl
 
-    str_ptr = "test_" + str(testcase_count)
+    str_ptr = "test_" + str(testcase_count) + "_str"
 
     linkReg = 5
     linkOptions = [5, 8, 13]
@@ -1739,7 +1749,12 @@ def writeVecTest(instruction, cp, vd, sew, testline, *scalar_registers_used, tes
     # capitalize only the first character (preserve the rest)
     extension_cap = extension[:1].upper() + extension[1:]
 
-    inst_ptr = f"{extension_cap}_{instruction_clean}_cg_{cp_clean}"
+    inst_ptr_base = f"{extension_cap}_{instruction_clean}_cg_{cp_clean}"
+    _inst_ptr_counts[inst_ptr_base] = _inst_ptr_counts.get(inst_ptr_base, 0) + 1
+    if _inst_ptr_counts[inst_ptr_base] == 1:
+        inst_ptr = inst_ptr_base
+    else:
+        inst_ptr = f"{inst_ptr_base}_duplicate_{_inst_ptr_counts[inst_ptr_base]}"
 
     writeLine(f"{inst_ptr}:")
 
@@ -1758,7 +1773,7 @@ def writeVecTest(instruction, cp, vd, sew, testline, *scalar_registers_used, tes
         fcsrsaveReg = randint(1,31)
       scalar_registers_used.append(fcsrsaveReg)
       writeLine(f"csrr x{fcsrsaveReg}, fcsr", f"# save fcsr into x{fcsrsaveReg} for signature")
-      writeSIGUPD(fcsrsaveReg)
+      writeSIGUPD(inst_ptr, fcsrsaveReg)
 
     if (test in vd_widen_ins) and (test not in wvsins):
       writeSIGUPD_V(inst_ptr, vd, 2*sew, avl=vl, sig_lmul=sig_lmul, load_testline = load_testline, sig_whole_register_store = sig_whole_register_store, testtype=testtype, masked=masked)  # EEW of vd = 2 * SEW for widening
@@ -1943,9 +1958,14 @@ def getInstructionArguments(instruction):
 
   return instruction_arguments
 
-def writeTest(description, instruction, cp, instruction_data,
+def writeTest(description, instruction, cp, instruction_data=None,
               sew=None, lmul=1, vl=1, vstart=0, maskval=None, vxrm=None,
               frm=None, vxsat=None, vta=0, vma=0, suite="base"):
+    # Support old 3-arg calling convention: writeTest(desc, inst, data, ...)
+    # where data (a list) was passed as cp. Detect and shift args.
+    if instruction_data is None and isinstance(cp, list):
+        instruction_data = cp
+        cp = _current_coverpoint
     global tab_count
 
     # Skip illegal nf × EMUL > 8 combinations (RISC-V V spec constraint)
@@ -2694,12 +2714,12 @@ def readTestplans(priv=False):
                         testplans["Vx" + effew] = tp
                     del testplans["Vx"]
                 if (arch == "Vls"):
-                    # for effew in ["8", "16", "32", "64"]:
-                    #     testplans["Vls" + effew] = tp
+                    for effew in ["8", "16", "32", "64"]:
+                        testplans["Vls" + effew] = tp
                     del testplans["Vls"]
                 if (arch == "Vf"):
-                    # for effew in ["16", "32", "64"]:
-                    #     testplans["Vf" + effew] = tp
+                    for effew in ["16", "32", "64"]:
+                        testplans["Vf" + effew] = tp
                     del testplans["Vf"]
                 if (arch in ["Zvbb", "Zvkb"]):
                     for effew in ["8", "16", "32", "64"]:

@@ -2,6 +2,25 @@
 
 **Read this guide when a test hangs during the build/sim phase.**
 
+## First Instinct: Assume It's a Hang
+
+**Your immediate instinct when a build or coverage step seems slow should be to suspect a hang.** Sail does not take a long time to run a single file — a single test ELF finishes in seconds. If it's been more than ~10 seconds on one file, it is almost certainly hanging.
+
+**Do not wait.** Run the file manually with graduated instruction limits to confirm:
+
+```bash
+# Start small to see if it makes progress at all
+timeout 10 /opt/riscv/bin/sail_riscv_sim --inst-limit 1000 --trace-instr --test-signature /dev/null <elf>
+
+# Increase to see how far it gets
+timeout 10 /opt/riscv/bin/sail_riscv_sim --inst-limit 5000 --trace-instr --test-signature /dev/null <elf>
+
+# Larger limit — if it still maxes out, it's an infinite loop
+timeout 30 /opt/riscv/bin/sail_riscv_sim --inst-limit 50000 --trace-instr --test-signature /dev/null <elf>
+```
+
+If Sail consistently runs to the instruction limit (you see it execute exactly N instructions and stop), the test is in an infinite loop. If it completes before the limit, it's not hanging — look elsewhere. Use the steps below to find the ELF and diagnose the root cause.
+
 ## Sail Binary & Location
 
 - Binary: `/opt/riscv/bin/sail_riscv_sim`

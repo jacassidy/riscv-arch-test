@@ -28,9 +28,29 @@ python3 isolate_coverpoint.py --restore <Category>
 
 ## Hang Detection
 
-Sail can run an **indefinite** number of tests — there is NO test count limit. If `make coverage` hangs
-(build step stuck on a `.sig` file for >60s for an isolated coverpoint), a test is generating an illegal
-instruction that causes an infinite trap loop. This is always a script bug, never a sail limitation.
+Sail is **fast**. Reference run times:
+
+| Scope                   | Expected time |
+| ----------------------- | ------------- |
+| Isolated coverpoint     | < 30 seconds  |
+| Full Vf suite           | ~3 minutes    |
+| Full V suite (all of V) | ~50 minutes   |
+
+A single test file runs in under 5 seconds. There is NO test count limit. **If coverage is slow relative to these benchmarks, assume a hang immediately.** Do not wait — run the file manually.
+
+**Incremental progress checks**: If you skip `make clean`, progress is saved. Use this to run coverage in short intervals and confirm progress is being made:
+
+```bash
+# For isolated coverpoints — should finish in one shot:
+timeout 30s make coverage
+
+# For a full suite (e.g. Vf), run in 30s intervals to confirm progress:
+timeout 30s make coverage   # check output — are files completing?
+timeout 30s make coverage   # more progress? good, keep going
+timeout 30s make coverage   # repeat until done or hang detected
+```
+
+If you don't see new `.sig` files completing between intervals, something is hanging. Do NOT just increase the timeout — investigate immediately.
 
 **How to identify a hang**: The `make coverage` output shows the oldest running task, e.g.:
 
@@ -38,8 +58,9 @@ instruction that causes an infinite trap loop. This is always a script bug, neve
 oldest: .../work/sail-rv32-max/build/rv32i/VfCustom64/VfCustom64-vfmv.s.f.sig
 ```
 
-**How to fix**: Follow `guides/debugging-hangs.md` — find the ELF, run with `--inst-limit` and `--trace-instr`,
-identify the illegal instruction, fix the script.
+If the same file stays as "oldest" across multiple 30s runs, that file is hanging.
+
+**How to fix**: Follow `guides/debugging-hangs.md` — find the ELF, run manually with graduated `--inst-limit` values (1000 → 5000 → 50000) to confirm the hang and locate the infinite loop, then fix the script.
 
 ## What to read and when
 
