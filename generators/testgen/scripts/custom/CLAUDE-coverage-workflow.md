@@ -13,8 +13,8 @@ python3 isolate_coverpoint.py <Category> <cp_column_name>
 # 2. Build (should finish <30s for one coverpoint; if not, isolation failed)
 make clean && make vector-tests
 
-# 3. Coverage (isolated coverpoints should finish FAST — under 60s typically)
-timeout 120s make coverage
+# 3. Coverage — always use FAST=True for normal runs (skips objdump, much faster)
+FAST=True timeout 120s make coverage
 
 # 4. Read results
 python3 generators/testgen/scripts/custom/claude-scripts/coverage_summary.py --uncovered
@@ -28,47 +28,34 @@ python3 isolate_coverpoint.py --restore <Category>
 
 ## Hang Detection
 
-Sail is **fast**. Reference run times:
-
 | Scope                   | Expected time |
 | ----------------------- | ------------- |
 | Isolated coverpoint     | < 30 seconds  |
 | Full Vf suite           | ~3 minutes    |
 | Full V suite (all of V) | ~50 minutes   |
 
-A single test file runs in under 5 seconds. There is NO test count limit. **If coverage is slow relative to these benchmarks, assume a hang immediately.** Do not wait — run the file manually.
+**If coverage is slow relative to these benchmarks, assume a hang immediately.** The `make coverage` output shows the oldest running task — if the same file stays as "oldest" across multiple runs, it's hanging. Follow `guides/debugging-hangs.md` to diagnose and fix.
 
-**Incremental progress checks**: If you skip `make clean`, progress is saved. Use this to run coverage in short intervals and confirm progress is being made:
+**Incremental progress**: Skipping `make clean` saves progress. Run `FAST=True timeout 30s make coverage` in intervals to confirm `.sig` files are completing. If no new files complete between intervals, investigate immediately.
+
+## Debugging with Trace Files
+
+Use `DEBUG=True` (without FAST) to generate trace files. **Trace files grow extremely fast** — use max 10s timeout (1s is usually enough).
 
 ```bash
-# For isolated coverpoints — should finish in one shot:
-timeout 30s make coverage
-
-# For a full suite (e.g. Vf), run in 30s intervals to confirm progress:
-timeout 30s make coverage   # check output — are files completing?
-timeout 30s make coverage   # more progress? good, keep going
-timeout 30s make coverage   # repeat until done or hang detected
+DEBUG=True timeout 1s make coverage    # preferred — short burst
+DEBUG=True timeout 10s make coverage   # max allowed
 ```
 
-If you don't see new `.sig` files completing between intervals, something is hanging. Do NOT just increase the timeout — investigate immediately.
-
-**How to identify a hang**: The `make coverage` output shows the oldest running task, e.g.:
-
-```
-oldest: .../work/sail-rv32-max/build/rv32i/VfCustom64/VfCustom64-vfmv.s.f.sig
-```
-
-If the same file stays as "oldest" across multiple 30s runs, that file is hanging.
-
-**How to fix**: Follow `guides/debugging-hangs.md` — find the ELF, run manually with graduated `--inst-limit` values (1000 → 5000 → 50000) to confirm the hang and locate the infinite loop, then fix the script.
+**Switch back to `FAST=True` immediately after** collecting traces.
 
 ## What to read and when
 
-| When                     | Read                                                                     |
-| ------------------------ | ------------------------------------------------------------------------ |
-| Planning next coverpoint | This file + `claude-scripts/progress.json`                               |
-| Fixing a test script     | `GUIDE.md` + `claude-scripts/knowledge.md`                               |
-| Fixing a template        | `generators/coverage/templates/GUIDE.md` + `claude-scripts/knowledge.md` |
+| When                     | Read                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Planning next coverpoint | This file + `claude-scripts/progress.json`                                                             |
+| Fixing a test script     | `GUIDE.md` + `claude-scripts/knowledge.md`                                                             |
+| Fixing a template        | `claude-scripts/knowledge.md` + templates in `generators/coverage/src/covergroupgen/templates/vector/` |
 
 ## Isolation
 

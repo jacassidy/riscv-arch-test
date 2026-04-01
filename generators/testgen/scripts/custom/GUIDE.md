@@ -33,21 +33,13 @@ Returns `[vector_register_data, scalar_register_data, floating_point_register_da
 
 The function inspects the `instruction` string and automatically configures:
 
-1. **EMUL for LS instructions**: Looks up EEW from instruction category lists (`eew8_ins`, `eew16_ins`, `eew32_ins`, `eew64_ins`). Sets `size_multiplier = EEW/SEW` on the correct operand (vd for loads, vs3 for stores, vs2 for indexed). The register assigner then uses `EMUL = size_multiplier × lmul` for alignment and spacing.
-
-2. **Segments for segmented instructions**: Parses nf from `seg2`–`seg8` category lists. Sets `segments` on all vector operands. Register assignment ensures `nf × EMUL` registers fit without exceeding v31.
-
-3. **Widening/narrowing multipliers**: Automatically sets `size_multiplier=2` on widened operands (vd and/or vs1/vs2 depending on instruction type via `getVectorEmulMultipliers`).
-
-4. **Architecture-mandated overlap constraints**: `getInstructionRegisterOverlapConstraints` adds the correct `_top`/`_bottom` overlap rules for widening, narrowing, mask-producing, compress, vext, and indexed segment instructions. You only need `additional_no_overlap` for constraints beyond the spec requirements (e.g., `['vd', 'v0']` to prevent vd=v0 when masking).
-
-5. **rs1 address for LS**: For load/store instructions, auto-sets `rs1_val_pointer = "vector_ls_random_base"` (valid memory).
-
-6. **rs2 stride for strided LS**: Auto-sets `rs2_val` to a valid stride value (`±N × EEW/8`).
-
-7. **Whole register LS**: Uses `nfields` as the effective LMUL (overrides the `lmul` argument).
-
-8. **Mask/scalar register types**: Sets `reg_type="mask"` or `"scalar"` for mask-producing, reduction, and move instructions so those operands use EMUL=1.
+- **LS EMUL**: Looks up EEW, sets `size_multiplier = EEW/SEW` on the correct operand (vd for loads, vs3 for stores, vs2 for indexed)
+- **Segments**: Parses nf, sets `segments` on all vector operands, ensures `nf × EMUL` registers fit
+- **Widening/narrowing**: Sets `size_multiplier=2` on widened operands via `getVectorEmulMultipliers`
+- **Overlap constraints**: Adds spec-mandated `_top`/`_bottom` overlap rules (widening, narrowing, mask-producing, compress, vext, indexed segments). Use `additional_no_overlap` only for constraints beyond the spec (e.g., `['vd', 'v0']`)
+- **LS addresses**: Auto-sets `rs1_val_pointer = "vector_ls_random_base"` and `rs2_val` (stride)
+- **Whole register LS**: Uses `nfields` as effective LMUL
+- **Mask/scalar types**: Sets `reg_type="mask"` or `"scalar"` for mask-producing, reduction, and move instructions
 
 #### RISC-V V spec constraint: nf × EMUL ≤ 8
 

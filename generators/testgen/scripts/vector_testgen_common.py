@@ -2284,7 +2284,11 @@ def randomizeRegister(instruction, eew, register_argument_name: str, reg_count: 
       segments  =     register_data['segments']
       if register_data['reg_type'] == "scalar" or register_data['reg_type'] == "mask" or emul < 1:
         emul = 1
-      register = emul * randint(0, int(reg_count/emul) - (segments)) # only register numbers of multiples of LMUL(EMUL) are allowed, segments must not go past reg 31
+      # Align to lmul even for scalar/mask registers so that scaffolding
+      # loads/stores (which execute at the current vtype LMUL) don't trap
+      # on misaligned register numbers.
+      alignment = max(emul, int(lmul)) if int(lmul) >= 1 else emul
+      register = alignment * randint(0, int(reg_count/alignment) - (segments)) # only register numbers of multiples of alignment are allowed, segments must not go past reg 31
     else: # normal instructions
       if register_type == "r":
         register = randint(1, reg_count-1) # 1 to maxreg, inclusive

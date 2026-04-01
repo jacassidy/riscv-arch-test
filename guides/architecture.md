@@ -35,7 +35,8 @@ riscv-arch-test/
 ├── generators/
 │   ├── testgen/src/testgen/coverpoints/          # Coverpoint generator modules (cp_*.py)
 │   ├── testgen/scripts/custom/                   # Custom cp_custom_*.py scripts
-│   ├── coverage/templates/vector/                # .sv coverage templates
+│   ├── coverage/src/covergroupgen/templates/      # Scalar/general .sv/.txt coverpoint templates
+│   │   └── vector/                                # Vector covergroup templates (cmp_*, cp_*, cr_*, sample_*)
 │   └── coverage/covergroupgen.py
 ├── testplans/*.csv                               # Live CSVs (managed by isolation scripts)
 ├── working-testplans/                            # Canonical CSV source + backups

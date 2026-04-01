@@ -11,13 +11,13 @@
 
 ## Task Routing
 
-| Task                                   | Read                                                            |
-| -------------------------------------- | --------------------------------------------------------------- |
-| Fix coverage holes                     | `generators/testgen/scripts/custom/CLAUDE-coverage-workflow.md` |
-| Write/edit CSV cells                   | `guides/csv-editing.md`                                         |
-| Write/fix cp*custom*\*.py script       | `generators/testgen/scripts/custom/GUIDE.md`                    |
-| Write/fix .sv coverage template        | `generators/coverage/templates/GUIDE.md`                        |
-| Look up vector encodings/FP hex values | `guides/vector-reference.md` (grep, don't read whole file)      |
-| Project structure, build commands      | `guides/architecture.md`                                        |
-| Debug a hanging test                   | `guides/debugging-hangs.md`                                     |
-| Known pitfalls and bugs                | `generators/testgen/scripts/custom/claude-scripts/knowledge.md` |
+| Task                                   | Read                                                                                           |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Fix coverage holes                     | `generators/testgen/scripts/custom/CLAUDE-coverage-workflow.md`                                |
+| Write/edit CSV cells                   | `guides/csv-editing.md`                                                                        |
+| Write/fix cp*custom*\*.py script       | `generators/testgen/scripts/custom/GUIDE.md`                                                   |
+| Look up vector encodings/FP hex values | `guides/vector-reference.md` (grep, don't read whole file)                                     |
+| Project structure, build commands      | `guides/architecture.md`                                                                       |
+| Debug a hanging test                   | `guides/debugging-hangs.md`                                                                    |
+| Known pitfalls and bugs                | `generators/testgen/scripts/custom/claude-scripts/knowledge.md`                                |
+| Fix/edit coverpoint templates          | `generators/coverage/src/covergroupgen/templates/` (scalar) and `…/templates/vector/` (vector) |

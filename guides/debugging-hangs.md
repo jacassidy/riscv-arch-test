@@ -4,22 +4,7 @@
 
 ## First Instinct: Assume It's a Hang
 
-**Your immediate instinct when a build or coverage step seems slow should be to suspect a hang.** Sail does not take a long time to run a single file — a single test ELF finishes in seconds. If it's been more than ~10 seconds on one file, it is almost certainly hanging.
-
-**Do not wait.** Run the file manually with graduated instruction limits to confirm:
-
-```bash
-# Start small to see if it makes progress at all
-timeout 10 /opt/riscv/bin/sail_riscv_sim --inst-limit 1000 --trace-instr --test-signature /dev/null <elf>
-
-# Increase to see how far it gets
-timeout 10 /opt/riscv/bin/sail_riscv_sim --inst-limit 5000 --trace-instr --test-signature /dev/null <elf>
-
-# Larger limit — if it still maxes out, it's an infinite loop
-timeout 30 /opt/riscv/bin/sail_riscv_sim --inst-limit 50000 --trace-instr --test-signature /dev/null <elf>
-```
-
-If Sail consistently runs to the instruction limit (you see it execute exactly N instructions and stop), the test is in an infinite loop. If it completes before the limit, it's not hanging — look elsewhere. Use the steps below to find the ELF and diagnose the root cause.
+A single test ELF finishes in seconds. If it's been more than ~10 seconds on one file, it is almost certainly hanging. **Do not wait** — find the ELF (Step 1) and run it manually with graduated `--inst-limit` values (Step 2). If Sail consistently runs to the instruction limit, it's an infinite loop.
 
 ## Sail Binary & Location
 
@@ -57,7 +42,21 @@ The last few lines of output show exactly where the hang occurs. Look for:
 - A repeating sequence of addresses — an infinite loop in trap handler
 - A specific instruction that sail can't complete
 
-## Step 3: Add Register Trace if Needed
+## Step 3: Programmatically Check for Traps
+
+Before reading the full trace, grep for `mcause` writes to instantly detect traps:
+
+```bash
+timeout 120 /opt/riscv/bin/sail_riscv_sim \
+  --inst-limit 500000 \
+  --trace-instr --trace-reg \
+  --test-signature /dev/null \
+  <path-to-elf> 2>&1 | grep -B5 "mcause"
+```
+
+The `-B5` context lines show the faulting instruction and its test label. See "Common Hang Causes" below for `mcause` value meanings (2 = illegal instruction is the most common).
+
+## Step 4: Add Register Trace if Needed
 
 ```bash
 timeout 30 /opt/riscv/bin/sail_riscv_sim \
@@ -70,7 +69,7 @@ timeout 30 /opt/riscv/bin/sail_riscv_sim \
 - `--trace-reg` shows register reads/writes (very verbose, use smaller inst-limit)
 - Useful for checking vtype/vl state: grep for `vtype` or `vl` in output
 
-## Step 4: Read the Source Assembly and Identify the Coverpoint
+## Step 5: Read the Source Assembly and Identify the Coverpoint
 
 Open the source `.S` file at `tests/rv64i/<Extension>/<filename>.S` (not in `work/`). Each test section has a comment like:
 
@@ -80,7 +79,7 @@ Open the source `.S` file at `tests/rv64i/<Extension>/<filename>.S` (not in `wor
 
 Find the section containing the failing instruction address and read the full assembly for that testcase. The comment names the `cp_custom_*` script that generated it.
 
-## Step 5: Diagnose from the Assembly First
+## Step 6: Diagnose from the Assembly First
 
 Understand the problem from the assembly before reading any Python. The assembly shows exactly what instructions execute and in what order. Common things to check:
 
@@ -92,7 +91,7 @@ If the issue is in scaffolding (mask preamble, register loads), the fix likely b
 
 Only read `vector_testgen_common.py` after you understand the assembly-level problem and know which function to target.
 
-## Step 6: Cross-reference with objdump if Needed
+## Step 7: Cross-reference with objdump if Needed
 
 Use `objdump` to correlate addresses back to test labels:
 
@@ -128,15 +127,13 @@ If `vsetvli` or `vsetvl` produces `vtype = 0x8000000000000000` (RV64) or `0x8000
 
 The test framework doesn't install trap handlers. Any exception (illegal instruction, misaligned access, etc.) causes an infinite loop at the default trap vector.
 
-### 3. LMUL-misaligned vector register in scaffolding (historical, fixed)
+### 3. LMUL-misaligned vector register in scaffolding (fixed)
 
-Mask setup preamble used `vid.v v1` regardless of LMUL. With LMUL>=2, v1 is not aligned to the register group size, causing an illegal instruction trap. **Fixed**: `prepMaskV()` now uses `v{int(lmul)}` as the temp register (v2 for LMUL=2, v4 for LMUL=4, v8 for LMUL=8).
+`prepMaskV()` used `vid.v v1` regardless of LMUL — illegal when LMUL>=2. Fixed: now uses LMUL-aligned temp register. Diagnosis: `mcause <- 0x2` after `vid.v` on odd register with LMUL>1.
 
-**Diagnosis**: Sail trace shows `mcause <- 0x2` (illegal instruction) immediately after a `vid.v` or `vmsltu.vx` on an odd-numbered register with LMUL>1.
+### 4. vmv.v.i before vsetvli (fixed)
 
-### 4. vmv.v.i before vsetvli (historical, fixed)
-
-See knowledge.md entry "vmv.v.i v0 Before vsetvli" — previously caused hangs when vtype.vill=1 after reset.
+Mask init emitted before `vsetvli` — hung when `vtype.vill=1` after reset. Fixed: now emits after `prepBaseV`. See `knowledge-archive.md` for details.
 
 ## Sail Model Configuration
 

@@ -9,20 +9,17 @@
 
 `ifndef COVER_VFCUSTOM64
         vs1_0_qNAN : coverpoint
-                (get_vr_element_zero(ins.hart, ins.issue, ins.current.vs1_val) inside {
-                `ifdef COVER_VFCUSTOM16
-                        [64'h0000_0000_0000_7E00:64'h0000_0000_0000_7FFF]
-                `elsif COVER_VFCUSTOM32
-                        [64'h0000_0000_7FC0_0000:64'h0000_0000_7FFF_FFFF]
-                `endif
-                })
-                || (get_vr_element_zero_widen(ins.hart, ins.issue, ins.current.vs1_val) inside {
-                `ifdef COVER_VFCUSTOM16
-                        [64'h0000_0000_7FC0_0000:64'h0000_0000_7FFF_FFFF]
-                `elsif COVER_VFCUSTOM32
-                        [64'h7FF8_0000_0000_0000:64'h7FFF_FFFF_FFFF_FFFF]
-                `endif
-                })
+        `ifdef COVER_VFCUSTOM16
+                (get_vr_element_zero(ins.hart, ins.issue, ins.current.vs1_val) >= 64'h0000_0000_0000_7E00
+                 && get_vr_element_zero(ins.hart, ins.issue, ins.current.vs1_val) <= 64'h0000_0000_0000_7FFF)
+                || (get_vr_element_zero_widen(ins.hart, ins.issue, ins.current.vs1_val) >= 64'h0000_0000_7FC0_0000
+                    && get_vr_element_zero_widen(ins.hart, ins.issue, ins.current.vs1_val) <= 64'h0000_0000_7FFF_FFFF)
+        `elsif COVER_VFCUSTOM32
+                (get_vr_element_zero(ins.hart, ins.issue, ins.current.vs1_val) >= 64'h0000_0000_7FC0_0000
+                 && get_vr_element_zero(ins.hart, ins.issue, ins.current.vs1_val) <= 64'h0000_0000_7FFF_FFFF)
+                || (get_vr_element_zero_widen(ins.hart, ins.issue, ins.current.vs1_val) >= 64'h7FF8_0000_0000_0000
+                    && get_vr_element_zero_widen(ins.hart, ins.issue, ins.current.vs1_val) <= 64'h7FFF_FFFF_FFFF_FFFF)
+        `endif
         {
                 bins posQNaN = {1};
         }

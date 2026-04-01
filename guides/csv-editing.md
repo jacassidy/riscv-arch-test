@@ -28,10 +28,9 @@ CSV editor agents are launched fresh per row with NO conversation history. All k
 
 ## Knowledge Persistence
 
-| Discovery Type                      | Add To                                                          |
-| ----------------------------------- | --------------------------------------------------------------- |
-| New coverpoint pattern or SV syntax | `generators/coverage/templates/GUIDE.md`                        |
-| New encoding / bit field value      | `guides/vector-reference.md`                                    |
-| New script pitfall or API detail    | `generators/testgen/scripts/custom/GUIDE.md`                    |
-| New workflow step or tool           | `generators/testgen/scripts/custom/CLAUDE-coverage-workflow.md` |
-| Custom coverpoint outcome/bug       | `generators/testgen/scripts/custom/claude-scripts/knowledge.md` |
+| Discovery Type                   | Add To                                                          |
+| -------------------------------- | --------------------------------------------------------------- |
+| New encoding / bit field value   | `guides/vector-reference.md`                                    |
+| New script pitfall or API detail | `generators/testgen/scripts/custom/GUIDE.md`                    |
+| New workflow step or tool        | `generators/testgen/scripts/custom/CLAUDE-coverage-workflow.md` |
+| Custom coverpoint outcome/bug    | `generators/testgen/scripts/custom/claude-scripts/knowledge.md` |
