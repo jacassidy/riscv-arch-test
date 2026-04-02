@@ -16,7 +16,7 @@ A single test ELF finishes in seconds. If it's been more than ~10 seconds on one
 Hanging tests show in build output like:
 
 ```
-oldest: .../work/sail-rv64-max/build/rv64i/VfCustom16/VfCustom16-vfmv.s.f.sig
+oldest: .../work/sail-rv64-max/build/rv64i/Vf16/Vf16-vfmv.s.f.sig
 ```
 
 The ELF is at that path with `.elf` appended. The partial log is at that path with `.log` appended.

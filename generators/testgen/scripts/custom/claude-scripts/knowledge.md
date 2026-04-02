@@ -29,7 +29,7 @@
 
 ## SEW64 FP — ifdef Guard for Custom Bins
 
-SEW=64 FP instructions require FLEN ≥ 64 (D extension). On systems without D extension, VfCustom64 covergroups will always show `cp_asm_count` and `std_vec` at 0%. This is expected and counts as 100% coverage. However, custom bins defined in templates **must** be guarded so they don't appear when FLEN < 64. Use the `` `ifndef COVER_VFCUSTOM64 `` / `` `else `` / `` `ifdef FLEN64 `` pattern:
+SEW=64 FP instructions require FLEN ≥ 64 (D extension). On systems without D extension, Vf64 covergroups will always show `cp_asm_count` and `std_vec` at 0%. This is expected and counts as 100% coverage. However, custom bins defined in templates **must** be guarded so they don't appear when FLEN < 64. Use the `` `ifndef COVER_VFCUSTOM64 `` / `` `else `` / `` `ifdef FLEN64 `` pattern (note: `COVER_VFCUSTOM*` macros are still defined as aliases in `header_vector.sv`):
 
 ```systemverilog
 `ifndef COVER_VFCUSTOM64
@@ -45,7 +45,7 @@ SEW=64 FP instructions require FLEN ≥ 64 (D extension). On systems without D e
 `endif
 ```
 
-When you see custom bins at 0% in a VfCustom64 report on a system without D extension, wrap them with this pattern. The residual `cp_asm_count`/`std_vec` at 0% is acceptable — those are framework-generated and cannot be ifdefed from the template.
+When you see custom bins at 0% in a Vf64 report on a system without D extension, wrap them with this pattern. The residual `cp_asm_count`/`std_vec` at 0% is acceptable — those are framework-generated and cannot be ifdefed from the template.
 
 ## RVVI fsflagsi CSR Alias Bug
 
@@ -86,7 +86,7 @@ See `knowledge-archive.md` for details on these resolved bugs:
 Sail can run an **indefinite** number of tests. If a build is hanging, it's a test bug (illegal instruction → trap loop), NOT a sail limitation. A single isolated coverpoint should build in <30s. If it takes longer:
 
 1. Kill the build
-2. Note the hanging file from `make coverage` output (e.g. `oldest: .../VfCustom64-vfmv.s.f.sig`)
+2. Note the hanging file from `make coverage` output (e.g. `oldest: .../Vf64-vfmv.s.f.sig`)
 3. Follow the debugging guide in `guides/debugging-hangs.md` to trace the hang and fix the script
 
 ## Completed Coverpoint Outcomes

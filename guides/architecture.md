@@ -18,6 +18,19 @@ make CONFIG_FILES=config/duts/cvw/cvw-rv64gc/test_config.yaml EXTENSIONS=I,M,A
 make lint / make lint-fix / make format
 ```
 
+### Incremental Rebuild (no clean needed)
+
+After fixing a testgen script, regenerate and re-run coverage without `make clean`:
+
+```bash
+make vector-tests                    # Regenerates .S files (~30s)
+rm work/sail-rv64-max/build/rv64i/<Ext>/*.sig   # Delete sigs for affected tests
+FAST=True make coverage              # Recompiles elfs (~2 min), re-sims only missing sigs
+```
+
+If test content is unchanged (same seed), coverage completes in ~2s. See
+`CLAUDE-coverage-workflow.md` for details.
+
 ## Pipeline: CSV to ELF
 
 1. CSV testplan maps instructions to coverpoints
@@ -40,7 +53,7 @@ riscv-arch-test/
 │   └── coverage/covergroupgen.py
 ├── testplans/*.csv                               # Live CSVs (managed by isolation scripts)
 ├── working-testplans/                            # Canonical CSV source + backups
-│   └── duplicates/                               # Canonical backups (VfCustom-save.csv, etc.)
+│   └── duplicates/                               # Canonical backups (Vf-save.csv, etc.)
 ├── tests/rv32i,rv64i/                            # Generated .S files
 ├── work/sail-rv64-max/reports/                   # RV64 coverage reports
 ├── work/sail-rv32-max/reports/                   # RV32 coverage reports

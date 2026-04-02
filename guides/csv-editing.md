@@ -10,7 +10,7 @@
 
 ## csv_edit.py API
 
-CSV name auto-resolves (e.g., `'Vf'`, `'VfCustom'`) to `working-testplans/`.
+CSV name auto-resolves (e.g., `'Vf'`, `'Vls'`) to `working-testplans/`. Note: VfCustom is now merged into Vf (like VxCustom is part of Vx).
 
 | Function         | Usage                                                        | Description                                  |
 | ---------------- | ------------------------------------------------------------ | -------------------------------------------- |

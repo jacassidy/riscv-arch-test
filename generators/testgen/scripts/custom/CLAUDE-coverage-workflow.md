@@ -38,6 +38,37 @@ python3 isolate_coverpoint.py --restore <Category>
 
 **Incremental progress**: Skipping `make clean` saves progress. Run `FAST=True timeout 30s make coverage` in intervals to confirm `.sig` files are completing. If no new files complete between intervals, investigate immediately.
 
+## Incremental Rebuild After Testgen Fix
+
+After fixing a bug in a testgen script, you do **not** need `make clean`. The build system
+tracks `.sig` files and only re-simulates tests that are missing them. This workflow saves
+significant time (~2 min recompile vs 5–10+ min full rebuild + simulation):
+
+```bash
+# 1. Fix the bug in the testgen script (e.g. vector-testgen-unpriv.py or cp_custom_*.py)
+
+# 2. Regenerate test .S files (no clean needed, ~30s)
+make vector-tests
+
+# 3. Delete .sig files for affected tests so they get re-simulated
+#    Delete specific tests:
+rm work/sail-rv64-max/build/rv64i/<Ext>/<test>.sig
+#    Or delete all sigs for an extension:
+rm work/sail-rv64-max/build/rv64i/<Ext>/*.sig work/sail-rv32-max/build/rv32i/<Ext>/*.sig
+
+# 4. Run coverage — only missing .sig files are re-simulated (~2 min recompile + sim time)
+FAST=True make coverage
+```
+
+**Key details:**
+
+- If .S content is unchanged (same seed, same logic), `act` detects this and skips
+  everything (completes in ~2s).
+- If .S content changed, `.elf` files are recompiled (~2 min for all VF), but only
+  tests with missing `.sig` files are re-simulated by Sail.
+- **Always delete `.sig` files for tests you want re-simulated** — stale sigs will not
+  be automatically invalidated by new .S content.
+
 ## Debugging with Trace Files
 
 Use `DEBUG=True` (without FAST) to generate trace files. **Trace files grow extremely fast** — use max 10s timeout (1s is usually enough).
@@ -66,7 +97,7 @@ DEBUG=True timeout 10s make coverage   # max allowed
 - Writes to `testplans/`, deletes other vector testplans, updates Makefile EXTENSIONS
 - **Always restore** before isolating a different coverpoint
 
-Manual EXTENSIONS if needed: `VfCustom16,VfCustom32,VfCustom64` or `VlsCustom8,VlsCustom16,VlsCustom32,VlsCustom64`
+Manual EXTENSIONS if needed: `Vf16,Vf32,Vf64` (VfCustom is now part of Vf) or `VlsCustom8,VlsCustom16,VlsCustom32,VlsCustom64`
 
 ## Coverage Completion Requirement
 

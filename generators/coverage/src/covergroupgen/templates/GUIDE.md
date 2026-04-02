@@ -124,7 +124,8 @@ wildcard ignore_bins name = {5'b???00};       // Exclude wildcard
 
     // All LMULs including fractional (REQUIRED when covering fractional — DUT-optional)
     // NOTE: For FP instructions (SEW >= 16), fractional LMULs must satisfy LMUL >= SEW/ELEN.
-    // Gate fractional bins with COVER_VFCUSTOM* defines: mf8 never valid for FP,
+    // Gate fractional bins with COVER_VFCUSTOM* defines (aliases defined in header_vector.sv,
+    // still valid after VfCustom merge into Vf): mf8 never valid for FP,
     // mf4 only at SEW=16 (COVER_VFCUSTOM16), mf2 not at SEW=64 (ifndef COVER_VFCUSTOM64).
     vtype_all_lmul: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_BEFORE, "vtype", "vlmul") {
         `ifdef LMULf8_SUPPORTED
@@ -318,9 +319,11 @@ Width field (bits 14:12) encodes EEW: 000=8, 101=16, 110=32, 111=64.
 ### SEW-Specific Bin Values (COVER_VFCUSTOM guards)
 
 When bins need different values per SEW (e.g., NaN encodings at different FP widths), use
-`ifdef COVER_VFCUSTOMxx` guards. Each generated coverage file (`VfCustom16_coverage.svh`, etc.)
-defines exactly one `COVER_VFCUSTOMxx` macro. Sibling macros are automatically `undef`'d by
-`generate.py` at the top of each file, so only one is active at compile time. Both
+`ifdef COVER_VFCUSTOMxx` guards. VfCustom is now merged into Vf (like VxCustom is part of Vx),
+but the `COVER_VFCUSTOM*` macros are still defined as aliases in `header_vector.sv`, so existing
+templates using them continue to work. Each generated coverage file (`Vf16_coverage.svh`, etc.)
+defines both `COVER_VFxx` and `COVER_VFCUSTOMxx`. Sibling macros are automatically `undef`'d by
+`generate.py` at the top of each file, so only one SEW variant is active at compile time. Both
 `ifdef`/`endif` chains and `ifdef`/`elsif`/`endif` chains are safe.
 
 ```systemverilog
@@ -346,8 +349,8 @@ vector category with SEW variants is added, it is handled automatically. Do NOT 
 SEW=64 FP instructions require FLEN ≥ 64 (D extension). Systems without D extension cannot
 execute SEW=64 FP instructions, so the covergroup shell (`cp_asm_count`, `std_vec`) will
 always be 0% — this is **expected and acceptable**. However, custom bins in templates must
-be excluded so they don't create unfillable coverage holes. Use `ifndef COVER_VFCUSTOM64` /
-`else` / `ifdef FLEN64`:
+be excluded so they don't create unfillable coverage holes. Use `ifndef COVER_VFCUSTOM64`
+(alias still valid after VfCustom→Vf merge) / `else` / `ifdef FLEN64`:
 
 ```systemverilog
 `ifndef COVER_VFCUSTOM64
@@ -363,7 +366,7 @@ be excluded so they don't create unfillable coverage holes. Use `ifndef COVER_VF
 `endif
 ```
 
-When reviewing coverage and VfCustom64 shows custom bins at 0% on a system without D
+When reviewing coverage and Vf64 shows custom bins at 0% on a system without D
 extension, wrap them with this pattern. The residual `cp_asm_count`/`std_vec` at 0% is
 fine — they are framework-generated and cannot be guarded from the template.
 

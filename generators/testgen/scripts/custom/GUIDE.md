@@ -122,6 +122,17 @@ data = randomizeVectorInstructionData(test, sew, count, lmul=1, vs2=0,
     additional_no_overlap=[['vd', 'v0']])
 ```
 
+## File Modification Rules for Test Generation
+
+**Strongly prefer modifying only `cp_custom_*.py` scripts.** Exhaust all options within custom scripts before considering changes to `vector_testgen_common.py` or `vector-testgen-unpriv.py`.
+
+When non-custom test generation work requires modifying those shared files:
+
+- Changes are necessary to make progress — these files are not off-limits.
+- Be **extremely frugal**: make only systematic, general-purpose changes.
+- **Avoid specific patch solutions** — every change should benefit multiple instructions or coverpoints, not just the one you're working on.
+- Keep changes minimal and well-scoped.
+
 ## Full API Reference
 
 For complete edge value sets, instruction category lists, additional patterns (overlap, VL/LMUL sweep, edge values), and `registerCustomData()` API, see `GUIDE-api-reference.md` in this directory.

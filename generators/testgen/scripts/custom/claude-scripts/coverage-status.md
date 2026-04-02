@@ -1,17 +1,8 @@
 # Coverage Work Status
 
-### VfCustom
+### Vf
 
-| Coverpoint                      | Status    | Coverage |
-| ------------------------------- | --------- | -------- |
-| cp_custom_vfp_flags             | completed | 100%     |
-| cp_custom_vfp_flags_nv          | completed | 100%     |
-| cp_custom_vfp_flags_nv_nx       | untested  |          |
-| cp_custom_vfp_flags_nv_nx_dz    | untested  |          |
-| cp_custom_vfp_flags_nv_nx_of    | untested  |          |
-| cp_custom_vfp_flags_nv_nx_of_uf | untested  |          |
-| cp_custom_vfp_flags_nx          | untested  |          |
-| cp_custom_vfp_flags_nv_dz       | untested  |          |
+Completed — all custom coverpoints at 100%. Any gaps are bugs.
 
 ### VlsCustom
 
