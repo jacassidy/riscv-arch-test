@@ -10,28 +10,31 @@ The maskval="zeroes" path zeros v0 via vmv.v.i, then pre_test_lines
 override element 0 to set bit 0 = 1.  This gives unsigned(v0) == 1.
 """
 
+from __future__ import annotations
+
 import re
-from coverpoint_registry import register
+
 import vector_testgen_common as common
+from coverpoint_registry import register
 from vector_testgen_common import (
-    writeTest,
-    randomizeVectorInstructionData,
-    incrementBasetestCount,
     getBaseSuiteTestCount,
-    vsAddressCount,
     getLmulFlag,
+    incrementBasetestCount,
+    randomizeVectorInstructionData,
+    vsAddressCount,
+    writeTest,
 )
 
 
 def _get_eew(instruction: str) -> int | None:
     """Get EEW from instruction name (e.g., vlseg3e64ff.v → 64)."""
-    m = re.search(r'e(\d+)', instruction.split('seg')[-1] if 'seg' in instruction else instruction)
+    m = re.search(r"e(\d+)", instruction.split("seg")[-1] if "seg" in instruction else instruction)
     return int(m.group(1)) if m else None
 
 
 def _get_nf(instruction: str) -> int:
     """Get nfields from segmented instruction name. Returns 1 if not segmented."""
-    m = re.search(r'seg(\d+)', instruction)
+    m = re.search(r"seg(\d+)", instruction)
     return int(m.group(1)) if m else 1
 
 
@@ -49,12 +52,18 @@ def make(test: str, sew: int) -> None:
     description = f"cp_custom_ffLS_update_vl ({test}, lmul=2, vl=vlmax, masked, v0=1)"
     try:
         data = randomizeVectorInstructionData(
-            test, sew, getBaseSuiteTestCount(), lmul=lmul,
-            additional_no_overlap=[['vd', 'v0']],
+            test,
+            sew,
+            getBaseSuiteTestCount(),
+            lmul=lmul,
+            additional_no_overlap=[["vd", "v0"]],
         )
-        rs1 = int(data[1]['rs1']['reg'])
-        # Pick a temp register for vsetvli that won't clobber rs1
-        temp = 31 if rs1 != 31 else 30
+        rs1 = int(data[1]["rs1"]["reg"])
+        rs2 = int(data[1]["rs2"]["reg"])
+        # Pick a temp register for vsetvli that avoids sigReg (signature pointer)
+        # and instruction operand registers
+        avoid = {rs1, rs2, common.sigReg, 0}
+        temp = next(r for r in range(31, 0, -1) if r not in avoid)
 
         lmulflag = getLmulFlag(lmul)
         # maskval="zeroes" zeros all of v0 (vmv.v.i v0, 0 at LMUL=2, vl=VLMAX).
@@ -64,8 +73,7 @@ def make(test: str, sew: int) -> None:
             "vmv.v.i v0, 1",
             f"vsetvli x{temp}, x0, e{sew}, m{lmulflag}, tu, mu",
         ]
-        writeTest(description, test, data, sew=sew, lmul=lmul, vl="vlmax",
-                  maskval="zeroes", pre_test_lines=pre_lines)
+        writeTest(description, test, data, sew=sew, lmul=lmul, vl="vlmax", maskval="zeroes", pre_test_lines=pre_lines)
         incrementBasetestCount()
         vsAddressCount()
     except ValueError:

@@ -1185,6 +1185,7 @@ def genVtestdata(test, sew):
   if test in vector_stores:
     test_data += genVsedges(test, 64, "8") # max size edges to ave all zeros available
     test_data += genRandomVector(test, sew, vs="vs3")
+    test_data += genRandomVector(test, sew, vs="vd") # vd data needed for length-suite preload
     if test in indexed_stores:
       test_data += genRandomVector(test, getInstructionEEW(test), vs="vs2")
     test_data += genRandomVectorLS()
@@ -1483,8 +1484,7 @@ def writeSIGUPD_V(inst_ptr, vd, sew, avl=1, sig_lmul = None, load_testline = Non
           f"RVTEST_SIGUPD_V_LEN(x{sigReg}, x{linkReg}, x{tempReg}, x{maskReg}, v{vtmp}, v{vtmp2}, v{mtmp}, v{vd}, 0, {masked_flag}, {sew}, {emul}, {offsetRem}, {inst_ptr}, {str_ptr})",
           f"# Check if v{vd} contains the expected result. x{sigReg} is the signature ptr, x{linkReg} is the link ptr, x{tempReg} is a temp reg.")
     else:
-      if lmul != 1:
-        writeLine(f"vsetivli x0, 1, e{sew}, m1, tu, mu", f"# set LMUL=1 before signature check")
+      writeLine(f"vsetivli x0, 1, e{sew}, m1, tu, mu", f"# set SEW={sew}, LMUL=1, VL=1 before signature check")
       writeLine(f"# RVTEST_SIGUPD_V(_CMP, _SIG_PTR, _LINK_REG, _TEMP_REG, _VTMP, _MTMP, _SEW, _OFFSET, _VREG, _INST_PTR, _STR_PTR)")
       if offset > 2047:
         if vd_mask:
@@ -1562,12 +1562,15 @@ def loadVecReg(instruction, register_argument_name: str, vector_register_data, s
       load_unique_vtype = True
     elif instruction in whole_register_move:
       load_unique_vtype = True
+    elif register_argument_name == "vs3" and instruction in whole_register_stores:
+      # vs3 of whole-register stores must be fully loaded (all NF registers)
+      load_unique_vtype = True
+    elif instruction in whole_register_ls:
+      load_unique_vtype = lmul != getInstructionSegments(instruction)
     else:
-      if instruction in whole_register_ls:
-        load_unique_vtype = lmul != getInstructionSegments(instruction)
       if register_emul <= 1 and register % lmul != 0:
         load_unique_vtype = True
-      if register % lmul != 0:
+      elif register % lmul != 0:
         load_unique_vtype = True
       else:
         load_unique_vtype = ((register_emul > 1 and register % register_emul != 0) and (register_data['reg_type'] == "mask" or register_data['reg_type'] == "scalar")) \
@@ -1595,8 +1598,25 @@ def loadVecReg(instruction, register_argument_name: str, vector_register_data, s
           # Whole-register LS with LMUL > 1: load vd with m1 to avoid alignment issues
           nf = getInstructionSegments(instruction)
           writeLine(f"vsetvli x0, x{avlReg}, e{register_sew}, m{nf}, tu, mu", f"# set lmul={nf} for whole-register LS vd load")
+        elif register_argument_name == "vs3" and instruction in whole_register_stores:
+          # Whole-register stores: vs3 must have ALL NF registers deterministically
+          # initialized, so set VL=VLMAX with LMUL=NF. Use a separate temp register
+          # to avoid clobbering avlReg (which holds the saved VL needed for restore).
+          nf = int(instruction[2])  # vs2r.v -> 2
+          vlmaxTempReg = 10
+          while vlmaxTempReg in scalar_registers_used:
+            vlmaxTempReg = randint(1,31)
+          scalar_registers_used.append(vlmaxTempReg)
+          writeLine(f"vsetvli x{vlmaxTempReg}, x0, e{register_sew}, m{nf}, tu, mu", f"# set lmul={nf}, VL=VLMAX for whole-reg store vs3 load")
         elif register_argument_name != "vd":
-          writeLine(f"vsetvli x0, x{avlReg}, e{max(register_sew, sew)}, m1, tu, mu", "# set lmul to 1 for load") # we do a max of sew an register_sew to ensure masks load with sew and scalars load with their eew so both load exactly a whole register when desired
+          # Indexed LS: vs2 index register needs e{EEW}/m{EMUL} to fill the full register group
+          if instruction in indexed_ls_ins and register_argument_name == 'vs2':
+            load_sew = register_sew
+            load_lmul = max(register_emul, 1)
+          else:
+            load_sew = max(register_sew, sew)
+            load_lmul = 1
+          writeLine(f"vsetvli x0, x{avlReg}, e{load_sew}, m{load_lmul}, tu, mu", f"# set lmul to {load_lmul} for load") # we do a max of sew and register_sew to ensure masks load with sew and scalars load with their eew so both load exactly a whole register when desired
 
     load_vls_random_corner = register_val_pointer == "vs_corner_random_within_2vlmax"
 
@@ -1746,7 +1766,7 @@ def getSigSpace(xlen, flen):
       signatureWords = sigupd_count + sigupd_countF # all Sigupd, no need to adjust since Xlen is equal to or larger than Flen and SIGUPD_F macro will adjust alignment up to XLEN
   return signatureWords
 
-def writeVecTest(instruction, cp, vd, sew, testline, *scalar_registers_used, test=None, rd=None, fd=None, vl=1, sig_lmul = None, sig_whole_register_store = False, load_testline = None, priv = False, testtype="base", masked=False, lmul=1, force_vill=False):
+def writeVecTest(instruction, cp, vd, sew, testline, *scalar_registers_used, test=None, rd=None, fd=None, vl=1, sig_lmul = None, sig_whole_register_store = False, load_testline = None, reload_pre_init: list[str] | None = None, priv = False, testtype="base", masked=False, lmul=1, force_vill=False):
     scalar_registers_used = list(scalar_registers_used)
 
     # record testcase string (_INST_PTR)
@@ -1778,6 +1798,9 @@ def writeVecTest(instruction, cp, vd, sew, testline, *scalar_registers_used, tes
       writeLine(f"vsetivli x0, 1, SEWSIZE, m{sig_lmul}, tu, mu",  f"# re-initialize vl = 1, LMUL = {sig_lmul}, SEW = SEWMIN for signature")
 
     if load_testline is not None:
+      if reload_pre_init:
+        for line in reload_pre_init:
+          writeLine(line, "# zero reload register for deterministic mask LS comparison")
       writeLine(load_testline, "# load value stored in memory to check against signature")
 
     if (test in vfloattypes) and (test not in fvtype):
@@ -2082,15 +2105,29 @@ def writeTest(description, instruction, cp, instruction_data=None,
         tempReg = randint(1,31)
       scalar_registers_used.append(tempReg)
 
+      # For non-indexed LS instructions with EEW, vd occupies EMUL = LMUL × EEW/SEW
+      # registers. The preload must cover the full EMUL group for deterministic self-check.
+      # Whole register LS: NF is fixed by instruction name, NOT by EEW/SEW ratio.
+      eew_ls = getInstructionEEW(instruction)
+      if instruction in whole_register_ls:
+        nf = int(instruction[2])  # vl1re32.v -> 1, vs4r.v -> 4
+        vd_emul = nf
+      elif eew_ls is not None and instruction in vector_ls_ins and instruction not in indexed_ls_ins:
+        vd_emul = min(lmul * eew_ls / sew, 8)
+        if vd_emul >= 1:
+          vd_emul = int(vd_emul)
+      else:
+        vd_emul = lmul
+
       # set vtype to VLMAX for vd load
       if lmul < 1 and instruction not in vd_widen_ins:
-        lmulflag = getLmulFlag(1) # for LMUL fractional cases we still want to load with LMUL=1 to get VLMAX number of elements loaded
+        lmulflag = getLmulFlag(max(vd_emul, 1))
       elif lmul > 1 and instruction in maskprodins:
         lmulflag = getLmulFlag(1) # for maskprodins vd is always a single register
       elif lmul > 1 and (instruction in vredins or instruction == "vmv.s.x"):
         lmulflag = getLmulFlag(1) # for vredins vd is always a single register
       else:
-        lmulflag = getLmulFlag(lmul)
+        lmulflag = getLmulFlag(max(vd_emul, lmul))
 
       if lmul < 1 and instruction in vd_widen_ins:
         writeLine(f"vsetvli x{tempReg}, x0, e{2*sew}, m{getLmulFlag(1)}, tu, mu", "# set vtype to VLMAX for vd load with widening")
@@ -2188,7 +2225,9 @@ def writeTest(description, instruction, cp, instruction_data=None,
       writeLine(f"li x{villReg}, {1 << (xlen - 1)}",                               "# Load vtype value with vill bit set")
       writeLine(f"vsetvl x0, x0, x{villReg}",                                       "# Set vtype with vill=1 via vsetvl")
 
+    mask_ls_ins = ["vsm.v", "vlm.v"]
     if vector_register_data['vd']['reg_type'] == "mask" or vector_register_data['vd']['reg_type'] == "scalar" \
+                                    or instruction in mask_ls_ins \
                                     or (instruction in whole_register_ls and (lmul != getInstructionSegments(instruction) or sew != getInstructionEEW(instruction))):
       sig_lmul = 1
       sig_whole_register_store = True
@@ -2203,6 +2242,7 @@ def writeTest(description, instruction, cp, instruction_data=None,
     signature_target_vd = vd
 
     load_testline = None
+    reload_pre_init: list[str] = []
     if instruction in vector_stores: # for stores we reload the value saved to memory to check against signature
       load_instruction = getLoadEquivilentInstruction(instruction, sew)
       [load_vector_register_data, load_scalar_register_data, load_floating_point_register_data, load_imm_val] = precomputed_load
@@ -2219,9 +2259,32 @@ def writeTest(description, instruction, cp, instruction_data=None,
       if maskval is not None:
         load_testline = load_testline + ", v0.t"
 
+      # Mask LS stores (vsm.v): the reload (vlm.v) only writes ceil(VL/8) bytes;
+      # remaining tail bytes of the reload register are undisturbed.  SELFCHECK
+      # code in final.elf may modify those tail bytes differently than test.elf,
+      # causing false signature mismatches.  Fix: zero the entire reload register
+      # before the reload so tail bytes are deterministic in both builds.
+      if instruction in mask_ls_ins:
+        mi_t1 = 3
+        while mi_t1 in scalar_registers_used:
+          mi_t1 = randint(1, 31)
+        mi_t2 = 11
+        while mi_t2 in scalar_registers_used or mi_t2 == mi_t1:
+          mi_t2 = randint(1, 31)
+        mi_t3 = 14
+        while mi_t3 in scalar_registers_used or mi_t3 == mi_t1 or mi_t3 == mi_t2:
+          mi_t3 = randint(1, 31)
+        reload_pre_init = [
+          f"csrr x{mi_t1}, vl",
+          f"csrr x{mi_t2}, vtype",
+          f"vsetvli x{mi_t3}, x0, e8, m1, tu, mu",
+          f"vmv.v.i v{load_vd}, 0",
+          f"vsetvl x0, x{mi_t1}, x{mi_t2}",
+        ]
+
     if instruction in whole_register_ls:
       # Whole-register LS: signature must use current SEW to avoid EMUL mismatch
-      # (e.g. vl1re16.v in VlsCustom8 with vtype=e8 would cause vse16.v EMUL=2)
+      # (e.g. vl1re16.v in Vls8 with vtype=e8 would cause vse16.v EMUL=2)
       signature_target_sew = sew
     elif instruction in vector_ls_ins and instruction not in indexed_ls_ins and getInstructionEEW(instruction) is not None :
       signature_target_sew = getInstructionEEW(instruction)
@@ -2234,9 +2297,9 @@ def writeTest(description, instruction, cp, instruction_data=None,
         writeLine(line)
 
     if (maskval is not None) or (vl is not None):
-      writeVecTest(instruction, cp, signature_target_vd, signature_target_sew, testline, *scalar_registers_used, test=instruction, rd=rd, fd=fd, vl=vl, sig_lmul=sig_lmul, load_testline = load_testline, sig_whole_register_store=sig_whole_register_store, testtype=suite, masked=(maskval is not None), lmul=lmul, force_vill=force_vill)
+      writeVecTest(instruction, cp, signature_target_vd, signature_target_sew, testline, *scalar_registers_used, test=instruction, rd=rd, fd=fd, vl=vl, sig_lmul=sig_lmul, load_testline = load_testline, reload_pre_init=reload_pre_init if reload_pre_init else None, sig_whole_register_store=sig_whole_register_store, testtype=suite, masked=(maskval is not None), lmul=lmul, force_vill=force_vill)
     else:
-      writeVecTest(instruction, cp, signature_target_vd, signature_target_sew, testline, *scalar_registers_used, test=instruction, rd=rd, fd=fd, sig_lmul=sig_lmul, load_testline = load_testline,  sig_whole_register_store=sig_whole_register_store, testtype=suite, masked=(maskval is not None), lmul=lmul, force_vill=force_vill)
+      writeVecTest(instruction, cp, signature_target_vd, signature_target_sew, testline, *scalar_registers_used, test=instruction, rd=rd, fd=fd, sig_lmul=sig_lmul, load_testline = load_testline, reload_pre_init=reload_pre_init if reload_pre_init else None, sig_whole_register_store=sig_whole_register_store, testtype=suite, masked=(maskval is not None), lmul=lmul, force_vill=force_vill)
 
     if (ifdef_string != "#if "):
       tab_count -= 1

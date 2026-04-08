@@ -97,7 +97,7 @@ DEBUG=True timeout 10s make coverage   # max allowed
 - Writes to `testplans/`, deletes other vector testplans, updates Makefile EXTENSIONS
 - **Always restore** before isolating a different coverpoint
 
-Manual EXTENSIONS if needed: `Vf16,Vf32,Vf64` (VfCustom is now part of Vf) or `VlsCustom8,VlsCustom16,VlsCustom32,VlsCustom64`
+Manual EXTENSIONS if needed: `Vf16,Vf32,Vf64` (VfCustom is now part of Vf) or `Vls8,Vls16,Vls32,Vls64` (VlsCustom is now merged into Vls)
 
 ## Coverage Completion Requirement
 
@@ -106,6 +106,10 @@ Manual EXTENSIONS if needed: `Vf16,Vf32,Vf64` (VfCustom is now part of Vf) or `V
 If a custom bin cannot be hit, **remove it from the template**. The goal is 100% across all custom bins: either write a test that hits the bin or delete it.
 
 **Residual bins at 0% are acceptable.** Bins not defined in the template (framework-generated bins like `cp_asm_count`, `std_vec`, or precondition crosses) will be filled when the full suite runs. Do not investigate or fix these during isolated coverpoint work.
+
+**Entire covergroups at 0% are also residual when the instruction has NO custom marks.** Many instructions in Vls (e.g., `vle32.v`, `vlse8.v`, `vse16.v`, `vlseg*`, `vlsseg*`, `vsseg*`, `vssseg*`) have no `cp_custom_*` columns marked in the CSV. Their covergroups only contain `cp_asm_count` and `std_vec` — both framework-generated. These show as 0%/ZERO in reports but are **not** coverage holes. They will be covered when the full non-custom test suite runs. Only instructions with `cp_custom_*` marks need custom test scripts.
+
+**Note:** VlsCustom has been merged into Vls. The single `Vls.csv` testplan now contains both custom and non-custom coverpoints. When updating `testplans/Vls.csv`, also update the canonical backup at `working-testplans/duplicates/Vls-save.csv`.
 
 ## Reading Coverage Reports
 

@@ -92,3 +92,17 @@ Sail can run an **indefinite** number of tests. If a build is hanging, it's a te
 ## Completed Coverpoint Outcomes
 
 See `knowledge-archive.md` for per-coverpoint notes on completed work.
+
+## Vls Coverage Status
+
+**VlsCustom has been merged into Vls.** The combined `Vls.csv` testplan covers all LS instructions (310 total) with both custom (`cp_custom_*`) and non-custom coverpoints. Extensions are `Vls8,Vls16,Vls32,Vls64`. When updating `testplans/Vls.csv`, also update `working-testplans/duplicates/Vls-save.csv`.
+
+**Full Vls coverage achieved:** All 94 covergroups at 100% on both RV32 and RV64. No hangs.
+
+### Key Bugs Fixed for Vls
+
+- **SIGUPD_V SEW mismatch (EEW≠SEW)**: `RVTEST_SIGUPD_V` uses `vle##_SEW.v` to load reference, but `vmsne.vv` compares at current vtype's SEW. For LS with EEW≠SEW (e.g., `vlseg5e8ff.v` at SEW=16), only 1 byte loaded but 2 bytes compared → stale-byte mismatch. Fix: always emit `vsetivli x0, 1, e{sig_sew}, m1` before SIGUPD in base tests (not just when lmul≠1).
+- **Mask LS reload register**: vsm.v/vlm.v store/load ceil(VL/8) bytes. Stale tail bytes in reload register differ between builds. Fix: zero reload register before reload.
+- **Indexed LS vs2 EMUL**: `loadVecReg` always used `m1` for vs2, but indexed LS with EEW≠SEW can have EMUL>1. Fix: use `e{register_sew}, m{max(register_emul,1)}`.
+- **Whole register LS vd preload EMUL**: Used `lmul*eew/sew` which gives wrong EMUL for whole register LS. Fix: extract NF from instruction name.
+- **Whole register stores vs3 loading**: Cascading `if` chain overwrote `load_unique_vtype=True` with False. Fix: restructured to `elif` chain. Also: used avlReg for VLMAX vsetvli, clobbering saved VL. Fix: use separate vlmaxTempReg.

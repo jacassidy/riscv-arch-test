@@ -21,26 +21,26 @@ zero offset (safe memory access).  We reload vs2 from custom data after
 sanitization because vmv.s.x can only provide XLEN-wide values.
 """
 
-from coverpoint_registry import register
 import vector_testgen_common as common
+from coverpoint_registry import register
 from vector_testgen_common import (
-    writeTest,
-    randomizeVectorInstructionData,
-    incrementBasetestCount,
     getBaseSuiteTestCount,
-    vsAddressCount,
+    incrementBasetestCount,
+    randomizeVectorInstructionData,
     registerCustomData,
+    vsAddressCount,
+    writeTest,
 )
 
 
 def _get_vs2_reg(data: list) -> int:
     """Extract the vs2 register number from randomized instruction data."""
-    return int(data[0]['vs2']['reg'])
+    return int(data[0]["vs2"]["reg"])
 
 
 def _get_rs1_reg(data: list) -> int:
     """Extract the rs1 register number from randomized instruction data."""
-    return int(data[1]['rs1']['reg'])
+    return int(data[1]["rs1"]["reg"])
 
 
 @register("cp_custom_ls_indexed")
@@ -50,14 +50,16 @@ def make(test: str, sew: int) -> None:
         description = f"cp_custom_ls_indexed_zero_extended_sew8 ({test}, vs2[0]=0xFF)"
         try:
             data = randomizeVectorInstructionData(
-                test, sew, getBaseSuiteTestCount(), lmul=1,
+                test,
+                sew,
+                getBaseSuiteTestCount(),
+                lmul=1,
             )
             vs2 = _get_vs2_reg(data)
             # Override vs2[0] to all-1s after loadVecReg sanitization.
             # At SEW=8, vmv.v.i with -1 writes 0xFF to element 0.
             pre_lines = [f"vmv.v.i v{vs2}, -1"]
-            writeTest(description, test, data, sew=sew, lmul=1, vl=1,
-                      pre_test_lines=pre_lines)
+            writeTest(description, test, data, sew=sew, lmul=1, vl=1, pre_test_lines=pre_lines)
             incrementBasetestCount()
             vsAddressCount()
         except ValueError:
@@ -68,13 +70,15 @@ def make(test: str, sew: int) -> None:
         description = f"cp_custom_ls_indexed_zero_extended_sew16 ({test}, vs2[0]=0xFFFF)"
         try:
             data = randomizeVectorInstructionData(
-                test, sew, getBaseSuiteTestCount(), lmul=1,
+                test,
+                sew,
+                getBaseSuiteTestCount(),
+                lmul=1,
             )
             vs2 = _get_vs2_reg(data)
             # At SEW=16, vmv.v.i with -1 writes 0xFFFF to element 0.
             pre_lines = [f"vmv.v.i v{vs2}, -1"]
-            writeTest(description, test, data, sew=sew, lmul=1, vl=1,
-                      pre_test_lines=pre_lines)
+            writeTest(description, test, data, sew=sew, lmul=1, vl=1, pre_test_lines=pre_lines)
             incrementBasetestCount()
             vsAddressCount()
         except ValueError:
@@ -88,20 +92,23 @@ def make(test: str, sew: int) -> None:
         description = f"cp_custom_ls_indexed_truncated ({test}, vs2[0] top 32 set)"
         try:
             data = randomizeVectorInstructionData(
-                test, sew, getBaseSuiteTestCount(), lmul=1,
+                test,
+                sew,
+                getBaseSuiteTestCount(),
+                lmul=1,
                 vs2_val_pointer=label,
             )
             vs2 = _get_vs2_reg(data)
             rs1 = _get_rs1_reg(data)
-            # Pick a temp register that's not rs1
-            temp = 31 if rs1 != 31 else 30
+            # Pick a temp register that avoids rs1 and sigReg (signature pointer)
+            avoid = {rs1, common.sigReg, 0}
+            temp = next(r for r in range(31, 0, -1) if r not in avoid)
             # Reload vs2 from custom data after sanitization
             pre_lines = [
                 f"la x{temp}, {label}",
                 f"vle64.v v{vs2}, (x{temp})",
             ]
-            writeTest(description, test, data, sew=sew, lmul=1, vl=1,
-                      pre_test_lines=pre_lines)
+            writeTest(description, test, data, sew=sew, lmul=1, vl=1, pre_test_lines=pre_lines)
             incrementBasetestCount()
             vsAddressCount()
         except ValueError:
@@ -113,7 +120,10 @@ def make(test: str, sew: int) -> None:
         description = f"cp_custom_ls_indexed_basic ({test}, sew={sew})"
         try:
             data = randomizeVectorInstructionData(
-                test, sew, getBaseSuiteTestCount(), lmul=1,
+                test,
+                sew,
+                getBaseSuiteTestCount(),
+                lmul=1,
             )
             writeTest(description, test, data, sew=sew, lmul=1, vl=1)
             incrementBasetestCount()
