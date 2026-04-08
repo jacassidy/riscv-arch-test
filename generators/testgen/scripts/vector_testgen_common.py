@@ -1591,7 +1591,11 @@ def loadVecReg(instruction, register_argument_name: str, vector_register_data, s
       elif instruction in whole_register_move:
         writeLine(f"vsetvli x{avlReg}, x0, e{register_sew}, m{register_emul}, tu, mu", f"# set unique vtype with lmul {register_emul} and vl = VLMAX for whole register move load")
       else:
-        if register_argument_name != "vd":
+        if register_argument_name == "vd" and instruction in whole_register_ls:
+          # Whole-register LS with LMUL > 1: load vd with m1 to avoid alignment issues
+          nf = getInstructionSegments(instruction)
+          writeLine(f"vsetvli x0, x{avlReg}, e{register_sew}, m{nf}, tu, mu", f"# set lmul={nf} for whole-register LS vd load")
+        elif register_argument_name != "vd":
           writeLine(f"vsetvli x0, x{avlReg}, e{max(register_sew, sew)}, m1, tu, mu", "# set lmul to 1 for load") # we do a max of sew an register_sew to ensure masks load with sew and scalars load with their eew so both load exactly a whole register when desired
 
     load_vls_random_corner = register_val_pointer == "vs_corner_random_within_2vlmax"
@@ -1742,7 +1746,7 @@ def getSigSpace(xlen, flen):
       signatureWords = sigupd_count + sigupd_countF # all Sigupd, no need to adjust since Xlen is equal to or larger than Flen and SIGUPD_F macro will adjust alignment up to XLEN
   return signatureWords
 
-def writeVecTest(instruction, cp, vd, sew, testline, *scalar_registers_used, test=None, rd=None, fd=None, vl=1, sig_lmul = None, sig_whole_register_store = False, load_testline = None, priv = False, testtype="base", masked=False, lmul=1):
+def writeVecTest(instruction, cp, vd, sew, testline, *scalar_registers_used, test=None, rd=None, fd=None, vl=1, sig_lmul = None, sig_whole_register_store = False, load_testline = None, priv = False, testtype="base", masked=False, lmul=1, force_vill=False):
     scalar_registers_used = list(scalar_registers_used)
 
     # record testcase string (_INST_PTR)
@@ -1763,6 +1767,11 @@ def writeVecTest(instruction, cp, vd, sew, testline, *scalar_registers_used, tes
     writeLine(f"{inst_ptr}:")
 
     writeLine(testline)
+
+    # Restore valid vtype after force_vill test so signature save ops don't trap
+    if force_vill:
+      lmulflag = getLmulFlag(lmul)
+      writeLine(f"vsetivli x0, 1, e{sew}, m{lmulflag}, tu, mu", "# Restore valid vtype after vill test")
 
     if (priv):
       writeLine("nop",                                           "# nop after possible trap")
@@ -1859,6 +1868,9 @@ def getSEWMINIfdef(instruction):
   return ifdef
 
 def getMaxIndexEEWIfdef(instruction):
+  # MAXINDEXEEW only applies to indexed LS instructions (the EEW of the index)
+  if instruction not in indexed_ls_ins:
+    return ""
   ifdef = ""
   if   instruction in eew64_ins:
     ifdef = "MAXINDEXEEW >= 64 & "
@@ -1965,7 +1977,8 @@ def getInstructionArguments(instruction):
 def writeTest(description, instruction, cp, instruction_data=None,
               sew=None, lmul=1, vl=1, vstart=0, maskval=None, vxrm=None,
               frm=None, vxsat=None, vta=0, vma=0, suite="base",
-              clear_fflags: bool = True, force_vill: bool = False):
+              clear_fflags: bool = True, force_vill: bool = False,
+              pre_test_lines: list[str] | None = None):
     # Support old 3-arg calling convention: writeTest(desc, inst, data, ...)
     # where data (a list) was passed as cp. Detect and shift args.
     if instruction_data is None and isinstance(cp, list):
@@ -1981,9 +1994,16 @@ def writeTest(description, instruction, cp, instruction_data=None,
       elif instruction in eew32_ins : eew = 32
       elif instruction in eew16_ins : eew = 16
       elif instruction in eew8_ins  : eew = 8
-      emul = (eew * lmul // sew) if eew is not None else lmul
-      if nf * emul > 8:
-        return
+      if instruction in indexed_ls_ins:
+        # Indexed: data EMUL = LMUL, index EMUL = EEW*LMUL/SEW
+        data_emul = lmul
+        index_emul = (eew * lmul // sew) if eew is not None else lmul
+        if nf * data_emul > 8 or index_emul > 8:
+          return
+      else:
+        emul = (eew * lmul // sew) if eew is not None else lmul
+        if nf * emul > 8:
+          return
 
     writeLine("\n")
 
@@ -2159,6 +2179,15 @@ def writeTest(description, instruction, cp, instruction_data=None,
 
     testline = testline[:-2] # remove the ", " at the end of the test
 
+    # Set vill AFTER all operand loading so scaffolding vector loads don't trap
+    if force_vill:
+      villReg = 3
+      while villReg in scalar_registers_used:
+        villReg = randint(1,31)
+      scalar_registers_used.append(villReg)
+      writeLine(f"li x{villReg}, {1 << (xlen - 1)}",                               "# Load vtype value with vill bit set")
+      writeLine(f"vsetvl x0, x0, x{villReg}",                                       "# Set vtype with vill=1 via vsetvl")
+
     if vector_register_data['vd']['reg_type'] == "mask" or vector_register_data['vd']['reg_type'] == "scalar" \
                                     or (instruction in whole_register_ls and (lmul != getInstructionSegments(instruction) or sew != getInstructionEEW(instruction))):
       sig_lmul = 1
@@ -2190,15 +2219,24 @@ def writeTest(description, instruction, cp, instruction_data=None,
       if maskval is not None:
         load_testline = load_testline + ", v0.t"
 
-    if instruction in vector_ls_ins and instruction not in indexed_ls_ins and getInstructionEEW(instruction) is not None :
+    if instruction in whole_register_ls:
+      # Whole-register LS: signature must use current SEW to avoid EMUL mismatch
+      # (e.g. vl1re16.v in VlsCustom8 with vtype=e8 would cause vse16.v EMUL=2)
+      signature_target_sew = sew
+    elif instruction in vector_ls_ins and instruction not in indexed_ls_ins and getInstructionEEW(instruction) is not None :
       signature_target_sew = getInstructionEEW(instruction)
     else :
       signature_target_sew = sew
 
+    # Emit pre-test assembly lines (after register setup, before label+instruction)
+    if pre_test_lines:
+      for line in pre_test_lines:
+        writeLine(line)
+
     if (maskval is not None) or (vl is not None):
-      writeVecTest(instruction, cp, signature_target_vd, signature_target_sew, testline, *scalar_registers_used, test=instruction, rd=rd, fd=fd, vl=vl, sig_lmul=sig_lmul, load_testline = load_testline, sig_whole_register_store=sig_whole_register_store, testtype=suite, masked=(maskval is not None), lmul=lmul)
+      writeVecTest(instruction, cp, signature_target_vd, signature_target_sew, testline, *scalar_registers_used, test=instruction, rd=rd, fd=fd, vl=vl, sig_lmul=sig_lmul, load_testline = load_testline, sig_whole_register_store=sig_whole_register_store, testtype=suite, masked=(maskval is not None), lmul=lmul, force_vill=force_vill)
     else:
-      writeVecTest(instruction, cp, signature_target_vd, signature_target_sew, testline, *scalar_registers_used, test=instruction, rd=rd, fd=fd, sig_lmul=sig_lmul, load_testline = load_testline,  sig_whole_register_store=sig_whole_register_store, testtype=suite, masked=(maskval is not None), lmul=lmul)
+      writeVecTest(instruction, cp, signature_target_vd, signature_target_sew, testline, *scalar_registers_used, test=instruction, rd=rd, fd=fd, sig_lmul=sig_lmul, load_testline = load_testline,  sig_whole_register_store=sig_whole_register_store, testtype=suite, masked=(maskval is not None), lmul=lmul, force_vill=force_vill)
 
     if (ifdef_string != "#if "):
       tab_count -= 1
@@ -2272,14 +2310,6 @@ def prepBaseV(sew, lmul, vl=1, vstart=0, ta=0, ma=0, force_vill=False, *scalar_r
   if (vstart):   # if vstart specified
     writeLine(f"li x{tempReg2}, {vstart}",                                        "# Load desired vstart value")
     writeLine(f"csrw vstart, x{tempReg2}")
-
-  if force_vill:
-    villReg = 3
-    while villReg in scalar_registers_used:
-      villReg = randint(1,31)
-    scalar_registers_used.append(villReg)
-    writeLine(f"li x{villReg}, {1 << (xlen - 1)}",                               "# Load vtype value with vill bit set")
-    writeLine(f"vsetvl x0, x0, x{villReg}",                                       "# Set vtype with vill=1 via vsetvl")
 
   return scalar_registers_used
 
@@ -2522,6 +2552,11 @@ def randomizeVectorInstructionData(instruction, sew, test_count, suite="base", l
     elif instruction in indexed_stores    : vector_register_preset_data['vs2']['size_multiplier'] = eew/sew
     elif instruction in vector_loads      : vector_register_preset_data[ 'vd']['size_multiplier'] = eew/sew
     elif instruction in vector_stores     : vector_register_preset_data['vs3']['size_multiplier'] = eew/sew
+
+  # For indexed LS, the index register group (vs2) is NOT segmented —
+  # only the data register group uses nf.  Override the general assignment.
+  if instruction in indexed_ls_ins:
+    vector_register_preset_data['vs2']['segments'] = 1
 
   if instruction in vextins: # swapped lmul and emul of vext instr for the convenience of register managing
     fraction_sew = 1/int(instruction[-1])
