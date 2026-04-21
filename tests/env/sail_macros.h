@@ -26,8 +26,10 @@
 # Perform boot operations. Can be empty or left undefined unless needed for
 # DUT-specific behavior such as turning on a memory controller or
 # initializing custom state.
-#undef RVMODEL_BOOT
-//#define RVMODEL_BOOT
+# NOTE: do NOT #undef RVMODEL_BOOT here — the sail-max DUT config defines a
+# vector-test trap-fail stub in RVMODEL_BOOT that must survive into the
+# sig.elf build so a trapping test exits sail immediately with FAILURE
+# instead of hanging until SAIL_TIMEOUT.
 
 ##### TERMINATION #####
 

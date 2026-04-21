@@ -17,7 +17,29 @@
 ##### STARTUP #####
 
 # Perform boot operations. Can be empty.
+#
+# For vector tests (RVTEST_VECTOR), install an mtvec fail stub: any trap
+# taken by the test writes 3 to HTIF tohost so sail exits with a FAILURE
+# status. Vector tests don't define rvtest_mtrap_routine, so the standard
+# RVTEST_TRAP_PROLOG never runs and this mtvec stays installed for the
+# entire test. Non-vector tests get the original empty RVMODEL_BOOT.
+#ifdef RVTEST_VECTOR
+#define RVMODEL_BOOT                               \
+  la t0, vector_trap_fail_entry                   ;\
+  csrw mtvec, t0                                  ;\
+  j vector_trap_fail_skip                         ;\
+  .balign 4                                       ;\
+  vector_trap_fail_entry:                         ;\
+    li x1, 3                                      ;\
+    la t0, tohost                                 ;\
+  vector_trap_fail_loop:                          ;\
+    sw x1, 0(t0)                                  ;\
+    sw x0, 4(t0)                                  ;\
+    j vector_trap_fail_loop                       ;\
+  vector_trap_fail_skip:
+#else
 #define RVMODEL_BOOT
+#endif
 
 ##### TERMINATION #####
 

@@ -22,7 +22,7 @@ WORKDIR     ?= work
 #  - ExceptionsZalrsc: See sail-riscv issue 1574. Resolved in upcoming sail-riscv release.
 #  - ExceptionsZaamo: Configuration needed between access and misaligned faults
 #  - InterruptsSm,PMPSm,PMPZca,PMPmisaligned: Additional testing needed on a wider range of configs. Some missing config options to match ref model.
-EXTENSIONS  ?=
+EXTENSIONS  ?= Vx8,Vx16,Vx32,Vx64,Vls8,Vls16,Vls32,Vls64,Vf16,Vf32,Vf64
 EXCLUDE_EXTENSIONS ?= Sm,S,InterruptsSm,ExceptionsZalrsc,ExceptionsZaamo,PMPSm,PMPZca,PMPmisaligned,Sv,Svade,Svadu,SvaduPMP,SvPMP,SvZicbo,SvPMPZicbo
 
 # Strip spaces from comma-separated lists so shell word-splitting doesn't break CLI arguments
@@ -129,6 +129,13 @@ clean:
 		find $(WORKDIR) \( -type f -o -type l \) ! -name 'extensions.txt' -delete; \
 		find $(WORKDIR) -type d -empty -delete; \
 	fi
+
+# Remove generated vector test .S files (still work-in-progress, not checked in)
+.PHONY: clean-vector-tests
+clean-vector-tests:
+	rm -rf $(SRCDIR64)/V* $(SRCDIR32)/V* $(SRCDIR64E)/V* $(SRCDIR32E)/V*
+	rm -rf $(UNPRIV_COVERPOINTS_DIR) $(COVERAGE_HELPERS_DIR)
+	rm -f $(STAMP_DIR)/covergroupgen.stamp $(STAMP_DIR)/vector-testgen-unpriv.stamp
 
 
 
